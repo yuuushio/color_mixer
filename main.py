@@ -280,8 +280,8 @@ INDEX_HTML = """
 <title>Elite Colour Mixer</title>
 <style>
 :root {
-  --bg: #fcfcf6;
-  --fg: #171717;
+  --bg: #fafafa;
+  --fg:#2a2722;
   --primary: #005fcc;
   --primary-light: #4d8fec;
   --border: #d1d9e6;
@@ -293,49 +293,90 @@ body {
   font-family: system-ui, sans-serif;
   background: var(--bg);
   color: var(--fg);
-  display: flex; flex-direction: column; align-items: center;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
 }
+
 h1 {
-  font-size: 2rem; margin-bottom: 1.5rem; font-weight: 600;
+  font-size: 2rem; margin-bottom: 1rem; font-weight: 600;
 }
-form {
-  display: flex; flex-wrap: wrap; gap: 1rem;
-  width: 100%; max-width: 640px; margin-bottom: 2rem;
+.layout {
+  display: flex;
+  gap: 2rem;
+  width: 100%; max-width: 1200px;
+  align-items: flex-start;
 }
-label {
-  flex: 1 1 180px; display: flex; flex-direction: column;
+
+.controls {
+  flex: 0 0 300px;
+  display: flex; flex-direction: column;
+}
+.controls form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+.controls label {
+  width: 100%;
+}
+.controls input,
+.controls select,
+.controls button {
+  width: 100%;
+}
+.controls label {
+  display: flex; flex-direction: column;
   font-size: 0.9rem;
 }
-input, select {
-  margin-top: 0.25rem; padding: 0.5rem 0.75rem;
-  font-size: 1rem; border: 1px solid var(--border);
-  border-radius: 6px; background: var(--input-bg);
+.controls input, .controls select, .controls button {
+  margin-top: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--input-bg);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
-input:focus, select:focus {
+.controls input:focus, .controls select:focus {
   outline: none; border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(0, 95, 204, 0.2);
+  box-shadow: 0 0 0 3px rgba(0,95,204,0.2);
 }
-button {
-  padding: 0.75rem 1.5rem; font-size: 1rem; font-weight: 500;
-  color: #fff; background: var(--primary); border: none;
-  border-radius: 6px; cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
+.controls button {
+  background: var(--primary); color: #fff;
+  border: none; cursor: pointer;
+  transition: background 0.2s;
 }
-button:hover { background: var(--primary-light); }
-button:active { transform: scale(0.98); }
+.controls button:hover {
+  background: var(--primary-light);
+}
+.swatches-panel {
+  flex: 1;
+}
 #swatches {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 1rem; width: 100%; max-width: 960px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+  width: 100%;
+  max-width: 960px;
 }
 .swatch {
-  background: #ffffff; border-radius: 10px;
-  padding: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-  display: flex; flex-direction: column; align-items: center;
+  background: rgba(0,0,0,0.02);
+  border-radius: 10px;
+  padding: 0.75rem;
+  # box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .color {
-  width: 38px; height: 38px; border-radius: 0.6rem;
-  margin-bottom: 0.75rem; border: 1px solid var(--border);
+  width: 38px;
+  height: 38px;
+  border-radius: 0.6rem;
+  border: 1px solid var(--border);
+  margin-bottom: 0.75rem;
 }
 .value-wrapper {
   position: relative;
@@ -345,58 +386,66 @@ button:active { transform: scale(0.98); }
   margin: 2px 0;
 }
 .hex, .rgb {
-  font-family: monospace; font-size: 0.85rem;
-  padding: 0.1rem 0.2rem;
-  border-radius: 0.2rem;
-  cursor: pointer; color: var(--fg);
-  transition: background-color 0.3s, color 0.3s;
+  font: 0.82rem/1 "IBM Plex Mono",monospace;
+  padding: 0.14rem 0.25rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: 0.25s;
 }
 .hex:hover, .rgb:hover {
-  background-color: rgba(0, 95, 204, 0.1);
-  color: var(--primary);
+  background: rgba(0,95,204,0.08);
+  color: var(--accent);
 }
 .hex:active, .rgb:active {
-  background-color: rgba(0, 95, 204, 0.2);
+  background: rgba(0,95,204,0.18);
 }
 .tick {
   position: absolute;
-  left: 100%;                 /* start immediately after the text width */
-  margin-left: 0.1rem;       /* small breathing-space */
-  top: 50%; transform: translateY(-50%);
+  left: 100%;
+  margin-left: 0.12rem;
+  top: 50%;
+  transform: translateY(-50%);
   font-size: 0.9rem;
   color: #28a745;
-  opacity: 1;
   pointer-events: none;
-  animation: fadeOut 1s forwards;
+  animation: fade 1s forwards;
 }
-@keyframes fadeOut { to { opacity: 0; } }
+@keyframes fade {
+  to { opacity: 0; }
+} }
 </style>
 </head>
 <body>
-<h1>Elite Colour Mixer</h1>
-<form id="mixform">
-  <label>Colour A
-    <input type="text" id="colA" placeholder="#ff0000" maxlength="7" pattern="^#[0-9A-Fa-f]{6}$" value="#ff0000" required>
-  </label>
-  <label>Colour B
-    <input type="text" id="colB" placeholder="#0000ff" maxlength="7" pattern="^#[0-9A-Fa-f]{6}$" value="#0000ff" required>
-  </label>
-  <label>Algorithm
-    <select id="algo">
-      <option value="srgb">sRGB (γ-encoded)</option>
-      <option value="linear">Linear-light sRGB</option>
-      <option value="oklab">Oklab</option>
-      <option value="okhsv">OkHSV</option>
-      <option value="cam16ucs">CAM16-UCS</option>
-      <option value="km_sub">Kubelka–Munk</option>
-    </select>
-  </label>
-  <label>Steps
-    <input type="number" id="steps" value="21" min="3" max="64">
-  </label>
-  <button type="submit">Mix</button>
-</form>
-<div id="swatches"></div>
+<div class="layout">
+  <div class="controls">
+    <h1>Colour Mixer</h1>
+    <form id="mixform">
+      <label>Colour A
+        <input type="text" id="colA" placeholder="#ff0000" maxlength="7" pattern="^#[0-9A-Fa-f]{6}$" value="#ff0000" required>
+      </label>
+      <label>Colour B
+        <input type="text" id="colB" placeholder="#0000ff" maxlength="7" pattern="^#[0-9A-Fa-f]{6}$" value="#0000ff" required>
+      </label>
+      <label>Algorithm
+        <select id="algo">
+          <option value="srgb">sRGB (γ-encoded)</option>
+          <option value="linear">Linear-light sRGB</option>
+          <option value="oklab">Oklab</option>
+          <option value="okhsv">OkHSV</option>
+          <option value="cam16ucs">CAM16-UCS</option>
+          <option value="km_sub">Kubelka–Munk</option>
+        </select>
+      </label>
+      <label>Steps
+        <input type="number" id="steps" value="21" min="3" max="64">
+      </label>
+      <button type="submit">Mix</button>
+    </form>
+  </div>
+  <div class="swatches-panel">
+    <div id="swatches"></div>
+  </div>
+</div>
 <script>
 (async () => {
   const form = document.getElementById('mixform');
