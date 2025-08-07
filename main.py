@@ -68,8 +68,15 @@ def hex_to_rgb01(hex_str: str) -> np.ndarray:
     return np.array([r, g, b], dtype=np.float32)
 
 
+# def rgb01_to_hex(rgb: np.ndarray) -> str:
+#     rgb_u8 = (clamp01(rgb) * 255.0 + 0.5).astype(np.uint8)
+#     return f"#{rgb_u8[0]:02x}{rgb_u8[1]:02x}{rgb_u8[2]:02x}"
 def rgb01_to_hex(rgb: np.ndarray) -> str:
-    rgb_u8 = (clamp01(rgb) * 255.0 + 0.5).astype(np.uint8)
+    """
+    Convert an sRGB triplet in [0-1] to #RRGGBB using **true round-to-nearest**
+    (exactly what `Math.round()` does for positive inputs).
+    """
+    rgb_u8 = np.round(np.clip(rgb, 0.0, 1.0) * 255.0).astype(np.uint8)
     return f"#{rgb_u8[0]:02x}{rgb_u8[1]:02x}{rgb_u8[2]:02x}"
 
 
@@ -265,60 +272,166 @@ INTERPOLATORS: Dict[str, Interpolator] = {
 # -----------------------------------------------------------------------------
 app = Flask(__name__)
 
-INDEX_HTML = """<!DOCTYPE html>
-<html lang="en"><meta charset="utf-8">
-<title>Elite Color Mixer Demo</title>
+INDEX_HTML = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Elite Colour Mixer</title>
 <style>
-body{font-family:sans-serif;margin:2rem;background:#f5f5f2;color:#1e1e1e}
-label{display:block;margin:0.5rem 0 0.2rem}
-input[type="color"]{width:4rem;height:2rem;border:none;margin-right:1ch}
-#swatches{margin-top:1.5rem}
-.row{display:flex;align-items:center;margin:2px 0;font:12px/1.2 monospace}
-.sw{width:48px;height:48px;border-radius:4px;margin-right:6px}
+:root {
+  --bg: #ffffff;
+  --fg: #333333;
+  --primary: #1f8ef1;
+  --primary-dark: #106cbf;
+  --border: #dddddd;
+  --input-bg: #f9f9f9;
+  --card-bg: #ffffff;
+  --shadow: rgba(0,0,0,0.05);
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0; padding: 2rem;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  display: flex; flex-direction: column; align-items: center;
+}
+h1 {
+  font-size: 2rem; margin-bottom: 1rem; font-weight: 600;
+}
+form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  width: 100%; max-width: 600px;
+  margin-bottom: 2rem;
+}
+label {
+  display: flex; flex-direction: column;
+  font-size: 0.9rem;
+}
+input[type="text"], select, input[type="number"] {
+  margin-top: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--input-bg);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+input[type="text"]:focus, select:focus, input[type="number"]:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(31,142,241,0.2);
+}
+button {
+  grid-column: span 2; justify-self: end;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem; font-weight: 500;
+  color: #fff;
+  background: var(--primary);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+}
+button:hover {
+  background: var(--primary-dark);
+  box-shadow: 0 4px 12px var(--shadow);
+}
+button:active {
+  transform: translateY(1px);
+}
+#swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 1rem;
+  width: 100%; max-width: 960px;
+}
+.swatch {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem;
+  box-shadow: 0 2px 6px var(--shadow);
+  display: flex; flex-direction: column; align-items: center;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.swatch:hover {
+  box-shadow: 0 4px 14px var(--shadow);
+  transform: translateY(-2px);
+}
+.swatch .color {
+  width: 3rem; height: 3rem;
+  border-radius: 4px;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--border);
+}
+.swatch .code {
+  font-family: monospace;
+  font-size: 0.85rem;
+  text-align: center;
+  word-break: break-all;
+}
 </style>
+</head>
 <body>
-<h2>Elite Colour‑Mixer Algorithms</h2>
+<h1>Elite Colour Mixer</h1>
 <form id="mixform">
-  <label>Colour A <input type="color" id="colA" value="#ff0000"></label>
-  <label>Colour B <input type="color" id="colB" value="#0000ff"></label>
+  <label>Colour A
+    <input type="text" id="colA" placeholder="#ff0000" maxlength="7" pattern="^#[0-9A-Fa-f]{6}$" value="#ff0000" required>
+  </label>
+  <label>Colour B
+    <input type="text" id="colB" placeholder="#0000ff" maxlength="7" pattern="^#[0-9A-Fa-f]{6}$" value="#0000ff" required>
+  </label>
   <label>Algorithm
     <select id="algo">
-      <option value="srgb">sRGB (γ‑encoded)</option>
-      <option value="linear">Linear‑light sRGB</option>
+      <option value="srgb">sRGB (γ-encoded)</option>
+      <option value="linear">Linear-light sRGB</option>
       <option value="oklab">Oklab</option>
       <option value="okhsv">OkHSV</option>
-      <option value="cam16ucs">CAM16‑UCS</option>
-      <option value="km_sub">Kubelka–Munk (subtractive)</option>
+      <option value="cam16ucs">CAM16-UCS</option>
+      <option value="km_sub">Kubelka–Munk (subtractive)</option>
     </select>
   </label>
-  <label>Steps: <input type="number" id="steps" value="21" min="3" max="64"></label>
-  <button type="submit">Mix</button>
+  <label>Steps
+    <input type="number" id="steps" value="21" min="3" max="64">
+  </label>
+  <button type="submit">Mix Colours</button>
 </form>
 <div id="swatches"></div>
 <script>
-document.getElementById('mixform').addEventListener('submit', async (e)=>{
-  e.preventDefault();
-  const a = document.getElementById('colA').value.slice(1);
-  const b = document.getElementById('colB').value.slice(1);
-  const algo = document.getElementById('algo').value;
-  const steps = +document.getElementById('steps').value;
-  const qs = new URLSearchParams({algo, a, b, n: steps});
-  const resp = await fetch(`/mix?${qs}`);
-  const data = await resp.json();
-  const div = document.getElementById('swatches');
-  div.innerHTML='';
-  data.forEach(hex=>{
-    const rgb=hex.slice(1).match(/../g).map(h=>parseInt(h,16));
-    const row=document.createElement('div');row.className='row';
-    const sw=document.createElement('div');sw.className='sw';sw.style.background=hex;
-    const txt=document.createElement('span');txt.textContent=`#${hex}  rgb(${rgb.join(',')})`;
-    row.appendChild(sw);row.appendChild(txt);div.appendChild(row);
+(async function() {
+  const form = document.getElementById('mixform');
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const a = document.getElementById('colA').value.replace(/^#/, '');
+    const b = document.getElementById('colB').value.replace(/^#/, '');
+    const algo = document.getElementById('algo').value;
+    const steps = +document.getElementById('steps').value;
+    const qs = new URLSearchParams({ algo, a, b, n: steps });
+    const resp = await fetch(`/mix?${qs}`);
+    const data = await resp.json();
+    const container = document.getElementById('swatches');
+    container.innerHTML = '';
+    data.forEach(hex => {
+      const rgb = hex.slice(1).match(/../g).map(h => parseInt(h, 16));
+      const sw = document.createElement('div'); sw.className = 'swatch';
+      const col = document.createElement('div'); col.className = 'color'; col.style.background = hex;
+      const txt = document.createElement('div'); txt.className = 'code'; txt.textContent = `${hex}  rgb(${rgb.join(',')})`;
+      sw.append(col, txt);
+      container.append(sw);
+    });
   });
-});
-// auto fire once
-setTimeout(()=>document.querySelector('button').click(),200);
+  // initial mix
+  setTimeout(() => document.querySelector('button').click(), 200);
+})();
 </script>
-</body></html>"""
+</body>
+</html>
+"""
 
 
 @app.route("/")
