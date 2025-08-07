@@ -266,7 +266,6 @@ INTERPOLATORS: Dict[str, Interpolator] = {
     "cam16ucs": cam16_interp,
     "km_sub": km_mix,
 }
-
 # -----------------------------------------------------------------------------
 # Flask app
 # -----------------------------------------------------------------------------
@@ -281,100 +280,96 @@ INDEX_HTML = """
 <title>Elite Colour Mixer</title>
 <style>
 :root {
-  --bg: #ffffff;
-  --fg: #333333;
-  --primary: #1f8ef1;
-  --primary-dark: #106cbf;
-  --border: #dddddd;
-  --input-bg: #f9f9f9;
-  --card-bg: #ffffff;
-  --shadow: rgba(0,0,0,0.05);
+  --bg: #fcfcf6;
+  --fg: #171717;
+  --primary: #005fcc;
+  --primary-light: #4d8fec;
+  --border: #d1d9e6;
+  --input-bg: #ffffff;
 }
 *, *::before, *::after { box-sizing: border-box; }
 body {
   margin: 0; padding: 2rem;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: system-ui, sans-serif;
   background: var(--bg);
   color: var(--fg);
   display: flex; flex-direction: column; align-items: center;
 }
 h1 {
-  font-size: 2rem; margin-bottom: 1rem; font-weight: 600;
+  font-size: 2rem; margin-bottom: 1.5rem; font-weight: 600;
 }
 form {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  width: 100%; max-width: 600px;
-  margin-bottom: 2rem;
+  display: flex; flex-wrap: wrap; gap: 1rem;
+  width: 100%; max-width: 640px; margin-bottom: 2rem;
 }
 label {
-  display: flex; flex-direction: column;
+  flex: 1 1 180px; display: flex; flex-direction: column;
   font-size: 0.9rem;
 }
-input[type="text"], select, input[type="number"] {
-  margin-top: 0.25rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 1rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--input-bg);
+input, select {
+  margin-top: 0.25rem; padding: 0.5rem 0.75rem;
+  font-size: 1rem; border: 1px solid var(--border);
+  border-radius: 6px; background: var(--input-bg);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
-input[type="text"]:focus, select:focus, input[type="number"]:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(31,142,241,0.2);
+input:focus, select:focus {
+  outline: none; border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(0, 95, 204, 0.2);
 }
 button {
-  grid-column: span 2; justify-self: end;
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem; font-weight: 500;
-  color: #fff;
-  background: var(--primary);
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+  padding: 0.75rem 1.5rem; font-size: 1rem; font-weight: 500;
+  color: #fff; background: var(--primary); border: none;
+  border-radius: 6px; cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
 }
-button:hover {
-  background: var(--primary-dark);
-  box-shadow: 0 4px 12px var(--shadow);
-}
-button:active {
-  transform: translateY(1px);
-}
+button:hover { background: var(--primary-light); }
+button:active { transform: scale(0.98); }
 #swatches {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 1rem;
-  width: 100%; max-width: 960px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem; width: 100%; max-width: 960px;
 }
 .swatch {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 1rem;
-  box-shadow: 0 2px 6px var(--shadow);
+  background: #ffffff; border-radius: 10px;
+  padding: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
   display: flex; flex-direction: column; align-items: center;
-  transition: box-shadow 0.2s, transform 0.2s;
 }
-.swatch:hover {
-  box-shadow: 0 4px 14px var(--shadow);
-  transform: translateY(-2px);
+.color {
+  width: 38px; height: 38px; border-radius: 0.6rem;
+  margin-bottom: 0.75rem; border: 1px solid var(--border);
 }
-.swatch .color {
-  width: 3rem; height: 3rem;
-  border-radius: 4px;
-  margin-bottom: 0.75rem;
-  border: 1px solid var(--border);
+.value-wrapper {
+  position: relative;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  margin: 2px 0;
 }
-.swatch .code {
-  font-family: monospace;
-  font-size: 0.85rem;
-  text-align: center;
-  word-break: break-all;
+.hex, .rgb {
+  font-family: monospace; font-size: 0.85rem;
+  padding: 0.1rem 0.2rem;
+  border-radius: 0.2rem;
+  cursor: pointer; color: var(--fg);
+  transition: background-color 0.3s, color 0.3s;
 }
+.hex:hover, .rgb:hover {
+  background-color: rgba(0, 95, 204, 0.1);
+  color: var(--primary);
+}
+.hex:active, .rgb:active {
+  background-color: rgba(0, 95, 204, 0.2);
+}
+.tick {
+  position: absolute;
+  left: 100%;                 /* start immediately after the text width */
+  margin-left: 0.1rem;       /* small breathing-space */
+  top: 50%; transform: translateY(-50%);
+  font-size: 0.9rem;
+  color: #28a745;
+  opacity: 1;
+  pointer-events: none;
+  animation: fadeOut 1s forwards;
+}
+@keyframes fadeOut { to { opacity: 0; } }
 </style>
 </head>
 <body>
@@ -393,17 +388,17 @@ button:active {
       <option value="oklab">Oklab</option>
       <option value="okhsv">OkHSV</option>
       <option value="cam16ucs">CAM16-UCS</option>
-      <option value="km_sub">Kubelka–Munk (subtractive)</option>
+      <option value="km_sub">Kubelka–Munk</option>
     </select>
   </label>
   <label>Steps
     <input type="number" id="steps" value="21" min="3" max="64">
   </label>
-  <button type="submit">Mix Colours</button>
+  <button type="submit">Mix</button>
 </form>
 <div id="swatches"></div>
 <script>
-(async function() {
+(async () => {
   const form = document.getElementById('mixform');
   form.addEventListener('submit', async e => {
     e.preventDefault();
@@ -411,21 +406,34 @@ button:active {
     const b = document.getElementById('colB').value.replace(/^#/, '');
     const algo = document.getElementById('algo').value;
     const steps = +document.getElementById('steps').value;
-    const qs = new URLSearchParams({ algo, a, b, n: steps });
-    const resp = await fetch(`/mix?${qs}`);
+    const resp = await fetch(`/mix?${new URLSearchParams({ algo, a, b, n: steps })}`);
     const data = await resp.json();
-    const container = document.getElementById('swatches');
-    container.innerHTML = '';
+    const container = document.getElementById('swatches'); container.innerHTML = '';
     data.forEach(hex => {
-      const rgb = hex.slice(1).match(/../g).map(h => parseInt(h, 16));
+      const rgbVals = hex.slice(1).match(/../g).map(h => parseInt(h, 16));
       const sw = document.createElement('div'); sw.className = 'swatch';
       const col = document.createElement('div'); col.className = 'color'; col.style.background = hex;
-      const txt = document.createElement('div'); txt.className = 'code'; txt.textContent = `${hex}  rgb(${rgb.join(',')})`;
-      sw.append(col, txt);
+      const wrapHex = document.createElement('span'); wrapHex.className = 'value-wrapper';
+      const hexEl = document.createElement('span'); hexEl.className = 'hex'; hexEl.textContent = hex;
+      wrapHex.appendChild(hexEl);
+      const wrapRgb = document.createElement('span'); wrapRgb.className = 'value-wrapper';
+      const rgbEl = document.createElement('span'); rgbEl.className = 'rgb'; rgbEl.textContent = `(${rgbVals.join(',')})`;
+      wrapRgb.appendChild(rgbEl);
+      [hexEl, rgbEl].forEach(el => {
+        el.addEventListener('click', async ev => {
+          ev.stopPropagation();
+          const textToCopy = el === hexEl ? hex : `rgb${el.textContent}`;
+          await navigator.clipboard.writeText(textToCopy);
+          const wrapper = el.parentNode;
+          const tick = document.createElement('span'); tick.className = 'tick'; tick.textContent = '✓';
+          wrapper.appendChild(tick);
+          setTimeout(() => { if (tick.parentNode) tick.parentNode.removeChild(tick); }, 1000);
+        });
+      });
+      sw.append(col, wrapHex, wrapRgb);
       container.append(sw);
     });
   });
-  // initial mix
   setTimeout(() => document.querySelector('button').click(), 200);
 })();
 </script>
