@@ -29,6 +29,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "coloraide" },
+    { name = "coloraide-extras" },
     { name = "colour-science" },
     { name = "flask" },
     { name = "matplotlib" },
@@ -38,6 +39,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "coloraide", extras = ["all"], specifier = ">=4.7.2" },
+    { name = "coloraide-extras", specifier = ">=1.11" },
     { name = "colour-science", specifier = ">=0.4.6" },
     { name = "flask", specifier = ">=3.1.1" },
     { name = "matplotlib", specifier = ">=3.10.5" },
@@ -51,6 +53,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/6d/28/634dfc08f605d0120781f907dcf2c00f5d44ee00ae6244030a0fb41322a3/coloraide-4.7.2.tar.gz", hash = "sha256:7e898e2ad177873809bd1f5fdb1d90618ad874049fead952ff4470d157666d4b", size = 19936822, upload-time = "2025-06-27T23:20:53.56Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b0/1f/35ea889c901d869c2910a6381d65c3785ebd513ea4dabb8702b01738d3ab/coloraide-4.7.2-py3-none-any.whl", hash = "sha256:45b73cfbc155b779bc44c638a13b27209681c8513baebaa53ec05eb1173233a4", size = 267393, upload-time = "2025-06-27T23:20:51.617Z" },
+]
+
+[[package]]
+name = "coloraide-extras"
+version = "1.11"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "coloraide" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d0/19/4a79fc9ffd3140f6c70c5b26fa847564cf23a51e264f126aba73e2e4dc55/coloraide_extras-1.11.tar.gz", hash = "sha256:0b132d404d42841984a8eb9f5001c4255c8cfa7d9bf14a439a05588268e65150", size = 217913, upload-time = "2025-06-22T14:32:54.286Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/82/b9/48df993407535fa2a485018f64b0913176d615b48e91c79cea64b5daba46/coloraide_extras-1.11-py3-none-any.whl", hash = "sha256:64c156b1136a85dbf2357e8126de0657906a0e3b24e1c09f6110559a3b2b6bd9", size = 16405, upload-time = "2025-06-22T14:32:53.036Z" },
 ]
 
 [[package]]

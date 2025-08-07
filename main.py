@@ -24,14 +24,32 @@ so every /mix call is O(steps) per algorithm.
 
 from __future__ import annotations
 
+from kubelka import km_mix
 import json
 import math
 from functools import lru_cache
 from typing import Callable, Dict, List, Tuple
 from colour.colorimetry import MSDS_CMFS
 
+from coloraide import Color as _Base
+from coloraide.spaces.cam16_ucs import CAM16UCS, CAM16JMh
+
+
+class Color(_Base):
+    """Project-local Color class with CAM16 support only."""
+
+
+pass
+
+# YOU MUST register *both* CAM16JMh (base model) *and* the UCS wrapper.
+# Interpolation handlers come along automatically.
+Color.register([CAM16JMh(), CAM16UCS()])
+
 import numpy as np
 from flask import Flask, jsonify, render_template_string, request
+import logging
+
+logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s")
 
 # -----------------------------------------------------------------------------
 # Utility helpers
@@ -159,106 +177,24 @@ def srgb_to_okhsv(rgb: np.ndarray) -> Tuple[float, float, float]:
     return h % 1.0, s, v
 
 
-# -----------------------------------------------------------------------------
-# CAM16‑UCS (requires colour‑science ≥0.4)
-# -----------------------------------------------------------------------------
-try:
-    import colour  # noqa: F401
-    from colour.appearance.cam16 import (
-        CAM_Specification_CAM16,
-        XYZ_to_CAM16,
-        CAM16_to_XYZ,
-        VIEWING_CONDITIONS_CAM16,  # new location for the presets dict
-    )
-    from colour.utilities import tsplit
-
-    _CAM16_S = {
-        "XYZ_w": np.array([95.05, 100.0, 108.9]),  # D65
-        "L_A": 64.0,
-        "Y_b": 20.0,
-        "surround": VIEWING_CONDITIONS_CAM16["average"],
-    }
-
-    def srgb_to_cam16ucs(rgb: np.ndarray) -> np.ndarray:
-        # Use full forward chain sRGB -> XYZ -> CAM16 -> UCS
-        xyz = colour.sRGB_to_XYZ(rgb)
-        cam16 = XYZ_to_CAM16(xyz, **_CAM16_S)
-        J, a_c, b_c = cam16.J, cam16.a, cam16.b
-        # CAM16-UCS forward transform
-        ucs = colour.appearance.cam16.CAM16_to_CAM16UCS(np.array([J, a_c, b_c]))
-        return ucs
-
-    def cam16ucs_to_srgb(ucs: np.ndarray) -> np.ndarray:
-        J, a, b = tsplit(ucs)
-        cam16 = CAM_Specification_CAM16(J=J, a=a_c, b=b_c)
-        xyz = CAM16_to_XYZ(cam16, **_CAM16_S)
-        return colour.XYZ_to_sRGB(xyz)
-
-    _HAVE_CAM16 = True
-except Exception:  # pragma: no cover – optional dep
-    _HAVE_CAM16 = False
-
-# -----------------------------------------------------------------------------
-# Kubelka–Munk subtractive mixture (very thin toy model)
-# -----------------------------------------------------------------------------
-# To keep the demo dependency‑free we use the 36‑sample RIT spotlight spectra
-# published by Wyszecki & Stiles as a coarse basis, then solve for minimal‐error
-# coefficients w.r.t. each sRGB primary.  A proper system would use measured
-# reflectance spectra per pigment; this here just demonstrates the mechanics.
-
-_SRGB2XYZ = np.array(
-    [
-        [0.4124564, 0.3575761, 0.1804375],
-        [0.2126729, 0.7151522, 0.0721750],
-        [0.0193339, 0.1191920, 0.9503041],
-    ],
-    dtype=np.float32,
-)
-_XYZ2SRGB = np.linalg.inv(_SRGB2XYZ)
-
-# synthetic spectra for sRGB primaries (from bruce lindbloom’s 1 nm table)
-_lambda = np.arange(380, 781, 10)
-red_spd = np.exp(-0.5 * ((_lambda - 610) / 30) ** 2)
-green_spd = np.exp(-0.5 * ((_lambda - 545) / 30) ** 2)
-blue_spd = np.exp(-0.5 * ((_lambda - 445) / 20) ** 2)
-_M_SPD = np.stack([red_spd, green_spd, blue_spd], axis=0)  # 3 × 41
-
-# CIE 1931 colour matching functions at 10 nm
-
-from colour.colorimetry import MSDS_CMFS, SpectralShape
-
-target = SpectralShape(380, 780, 10)  # start, end, step
-cmf = MSDS_CMFS["CIE 1931 2 Degree Standard Observer"].copy().align(target)
+# --------------------------------------------------------------------------
+# CAM16-UCS via Coloraide  (tiny, fast, self-contained)
+# --------------------------------------------------------------------------
 
 
-_CMF = cmf.values  # shape (41, 3)
+def srgb_to_cam16ucs(rgb: np.ndarray) -> np.ndarray:  # → J′ a′ b′
+    col = Color(rgb01_to_hex(rgb))  # sRGB → Coloraide
+    j, a_, b_ = col.convert("cam16-ucs").coords()
+    return np.array([j, a_, b_], dtype=np.float32)
 
 
-def spd_to_xyz(spd: np.ndarray) -> np.ndarray:
-    k = 100 / np.sum(_CMF[:, 1] * 10)  # normalise Y = 100 for white
-    xyz = spd @ (_CMF * k * 10)
-    return xyz
+def cam16ucs_to_srgb(ucs: np.ndarray) -> np.ndarray:  # J′ a′ b′ → sRGB
+    j, a_, b_ = ucs
+    col = Color(f"cam16-ucs {j} {a_} {b_}")
+    return hex_to_rgb01(col.convert("srgb").to_string(hex=True))
 
 
-_SPD2XYZ = np.array([spd_to_xyz(spd) for spd in _M_SPD])  # 3 × 3
-
-# Fit linear coefficients so that SPD basis reproduces sRGB → XYZ mapping
-_K = np.linalg.lstsq(_SPD2XYZ.T, _SRGB2XYZ.T, rcond=None)[0]  # 3 × 3
-
-
-def srgb_to_spd(rgb: np.ndarray) -> np.ndarray:
-    # Map sRGB triplet to spectral power via linear combo of basis curves
-    return rgb @ _K.T @ _M_SPD
-
-
-def km_mix(rgb_a: np.ndarray, rgb_b: np.ndarray, t: float) -> np.ndarray:
-    # Convert both RGB colours to reflectance spectra R(λ); mix reflectances
-    R_a = srgb_to_spd(rgb_a)
-    R_b = srgb_to_spd(rgb_b)
-    R_mix = (1 - t) * R_a + t * R_b  # very crude – true KM uses K/S; fine for demo
-    xyz = spd_to_xyz(R_mix)
-    rgb_lin = (xyz @ _XYZ2SRGB.T) / 100  # scale back, linear light
-    return clamp01(linear_to_srgb(rgb_lin))
+_HAVE_CAM16 = True
 
 
 # -----------------------------------------------------------------------------
@@ -295,9 +231,24 @@ def okhsv_interp(a: np.ndarray, b: np.ndarray, t: float) -> np.ndarray:
 
 
 def cam16_interp(a: np.ndarray, b: np.ndarray, t: float) -> np.ndarray:
-    if not _HAVE_CAM16:
-        raise RuntimeError("colour‑science not installed")
-    return clamp01(cam16ucs_to_srgb(lerp(srgb_to_cam16ucs(a), srgb_to_cam16ucs(b), t)))
+    try:
+        hex_a = rgb01_to_hex(a)
+        hex_b = rgb01_to_hex(b)
+        logging.debug(f"[CAM16-UCS]  t={t:.3f}   A={hex_a}   B={hex_b}")
+
+        # Build a fresh interpolator (cheap: two parses + small lambda)
+        lerp = Color.interpolate([hex_a, hex_b], space="cam16-ucs", method="linear")
+
+        col = lerp(t)  # Color object
+        logging.debug(f"[CAM16-UCS]  → {col}")
+
+        rgb = hex_to_rgb01(col.convert("srgb").to_string(hex=True))
+        logging.debug(f"[CAM16-UCS]  sRGB {rgb}\n")
+        return rgb
+
+    except Exception:
+        logging.exception("CAM16-UCS interpolation failed")
+        raise  # let /mix return 500 → JS
 
 
 INTERPOLATORS: Dict[str, Interpolator] = {
@@ -377,8 +328,8 @@ def index():
 
 @app.route("/mix")
 def mix():
-    hex_a = "#" + request.args.get("a", "#ff0000")
-    hex_b = "#" + request.args.get("b", "#0000ff")
+    hex_a = "#" + request.args.get("a", "#ff0000").lstrip("#")
+    hex_b = "#" + request.args.get("b", "#0000ff").lstrip("#")
     algo = request.args.get("algo", "srgb")
     n = int(request.args.get("n", 21))
     n = max(3, min(n, 256))
