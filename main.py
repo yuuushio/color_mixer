@@ -272,221 +272,564 @@ INTERPOLATORS: Dict[str, Interpolator] = {
 app = Flask(__name__)
 
 INDEX_HTML = """
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Elite Colour Mixer</title>
-<style>
-:root {
-  --bg: #fafafa;
-  --fg:#2a2722;
-  --primary: #005fcc;
-  --primary-light: #4d8fec;
-  --border: #d1d9e6;
-  --input-bg: #ffffff;
-}
-*, *::before, *::after { box-sizing: border-box; }
-body {
-  margin: 0; padding: 2rem;
-  font-family: system-ui, sans-serif;
-  background: var(--bg);
-  color: var(--fg);
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  min-height: 100vh;
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Elite Colour Mixer</title>
+    <!-- <link rel="stylesheet" href="styles.css" /> -->
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&display=swap");
+
+      :root {
+        --bg: #eceff4;
+        --fg: #2e3440;
+        --primary: #5e81ac;
+        --primary-light: #8fbcbb;
+        --border: #d1d9e6;
+        --input-bg: #ffffff;
+      }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        font-family: system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        padding:0;
+        overflow:hidden;
+      }
+      .hard-bg {
+        background: #eeaeca;
+        /*
+        background: radial-gradient(
+          circle,
+          rgba(238, 174, 202, 1) 0%,
+          rgba(148, 187, 233, 1) 100%
+        );*/
+        /* padding: 2rem; */
+      }
+      .hard-bg,
+      .filtered-bg {
+        position: fixed;
+
+        padding:0;
+        display: flex;
+        justify-content: center;
+
+        align-items: flex-start;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        inset:0;
+      }
+
+      h1 {
+        font-family: "Oswald";
+        font-size: 1.2rem;
+        padding: 0.5rem 1rem;
+        letter-spacing: 0.1rem;
+        margin-bottom: 1rem;
+        margin-top: 0.5rem;
+        font-weight: 400;
+        /* box-shadow: rgba(0, 0, 0, 0.05) 0px 1px 2px 0px; */
+        /* box-shadow: rgba(17, 17, 26, 0.1) 0px 1px 0px; */
+      }
+      .filtered-bg {
+
+        padding: 4rem 2rem;
+        background: rgba(236, 239, 244, 0.9);
+        backdrop-filter: saturate(180%) blur(15px);
+        overflow:auto;
+      }
+      .layout {
+        opacity: 100%;
+        display: flex;
+        gap: 2rem;
+        width: 100%;
+        max-width: 1200px;
+        align-items: flex-start;
+      }
+
+      .sidebar {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+        flex: 0 0 235px; /* or whatever width you like */
+      }
+
+      .controls {
+        background: rgba(229, 233, 240, 0.1);
+        backdrop-filter: blur(6px);
+        padding: 1rem;
+        border: 1px solid rgba(76, 86, 106, 0.08);
+        border-radius: 0.6rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        display: flex;
+        flex-direction: column;
+      }
+      .controls form {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        width: 100%;
+      }
+      .controls label {
+        display: flex;
+        flex-direction: column;
+        font-size: 0.7rem;
+        width: 100%;
+      }
+      .controls input,
+      .controls select,
+      .mix-btn {
+        margin-top: 0.25rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
+        outline: none;
+        border-radius: 0.4rem;
+        background: rgba(216, 222, 233, 0.5);
+        letter-spacing: 0.05rem;
+        font-family: "Iosevka Nerd Font";
+        border: 1px solid transparent;
+
+        opacity: 80%;
+        transition:
+          border-color 0.2s,
+          border 0.2s,
+          opacity 0.1s,
+          box-shadow 0.2s;
+        width: 100%;
+      }
+      .controls input:focus {
+        outline: none;
+        opacity: 100%;
+
+        border: 1px solid rgba(76, 86, 106, 0.1);
+      }
+      .mix-btn {
+        opacity: 100%;
+        background: #8fbcbb;
+        color: #2e3440;
+        border: none;
+        cursor: pointer;
+        opacity: 80%;
+        border: 1px solid transparent;
+        transition: opacity 0.2s;
+      }
+      .mix-btn:hover {
+        background: #8fbcbb;
+        opacity:100%;
+      }
+
+      .mix-btn button:active {
+
+        background:#9dc3c3;
+      }
+
+      .swatches-panel {
+        flex: 1;
+      }
+      #swatches {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+        gap: 1rem;
+        width: 100%;
+        max-width: 960px;
+      }
+      .swatch {
+        background: rgba(229, 233, 240, 0.1);
+        border:none;
+        border-radius: 10px;
+        padding: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        box-shadow:
+          rgba(0, 0, 0, 0.06) 0px 1px 3px 0px,
+          rgba(0, 0, 0, 0.04) 0px 1px 2px 0px;
+      }
+      .color {
+        width: 38px;
+        height: 38px;
+        border-radius: 0.6rem;
+        border: 1px solid var(--border);
+        margin-bottom: 0.75rem;
+      }
+      .value-wrapper {
+        position: relative;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        margin: 2px 0;
+      }
+      .hex,
+      .rgb {
+        font:
+          0.82rem/1 "IBM Plex Mono",
+          monospace;
+        padding: 0.14rem 0.25rem;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: 0.25s;
+      }
+      .hex:hover,
+      .rgb:hover {
+        background: rgba(0, 95, 204, 0.08);
+        color: var(--primary);
+      }
+      .hex:active,
+      .rgb:active {
+        background: rgba(0, 95, 204, 0.18);
+      }
+      .tick {
+        position: absolute;
+        left: 100%;
+        margin-left: 0.1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 0.9rem;
+        color: #a3be8c;
+        pointer-events: none;
+        animation: fade 1s forwards;
+      }
+      @keyframes fade {
+        to {
+          opacity: 0;
+        }
+      }
+
+      /* Algorithm dropdown */
+      .algo-prefix-container {
+        position: relative;
+        margin-top: 0.25rem;
+        display: flex;
+        align-items: center;
+        border: 1px solid transparent;
+        outline: none;
+        border-radius: 0.4rem;
+        opacity: 80%;
+        background: rgba(216, 222, 233, 0.5);
+      }
+      .algo-trigger {
+        flex: 1;
+        background: transparent;
+        font-family: "Iosevka Nerd Font";
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
+        border: none;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .algo-outer-cont {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        padding-right: 0.75rem;
+      }
+      .arrow {
+        border: solid var(--fg);
+        border-width: 0 2px 2px 0;
+        display: inline-block;
+        opacity: 50%;
+        padding: 2px;
+      }
+      .down {
+        transform: rotate(45deg);
+        -webkit-transform: rotate(45deg);
+      }
+      .algo-menu {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        width: 100%;
+        background: rgba(229, 233, 240, 1);
+        display: flex;
+        flex-direction: column;
+        transform-origin: top center;
+        transform: scaleY(0);
+        opacity: 0;
+        transition:
+          transform 0.1s ease-out,
+          opacity 0.1s ease-out;
+        z-index: 100;
+        border: 1px solid rgba(76, 86, 106, 0.1);
+        box-shadow:
+          rgba(17, 17, 26, 0.05) 0px 1px 0px,
+          rgba(17, 17, 26, 0.1) 0px 0px 8px;
+
+        border-radius: 0.4rem;
+        outline: none;
+        padding: 0.2rem;
+      }
+      .algo-prefix-container.open .algo-menu {
+        transform: scaleY(1);
+        opacity: 1;
+      }
+      .algo-prefix-container.open {
+        opacity: 100%;
+        border: 1px solid rgba(76, 86, 106, 0.1);
+      }
+      .algo-item {
+        padding: 0.5rem 0.75rem;
+        margin-bottom: 0.2rem;
+        background: transparent;
+        border: none;
+        border-radius: 0.4rem;
+        text-align: left;
+        cursor: pointer;
+        transition: background 0.2s;
+
+        font-size: 0.9rem;
+        font-family: "Iosevka Nerd Font";
+      }
+      .algo-item:hover {
+        background: rgba(216, 222, 233, 0.5);
+        color: #5e81ac;
+      }
+      .algo-item.active {
+        background: rgba(216, 222, 233, 0.5);
+        color: #5e81ac;
+      }
+
+    </style>
+  </head>
+  <body>
+    <div id="chaos" class="hard-bg">
+      <div class="filtered-bg" >
+        <div class="layout">
+          <div class="sidebar">
+            <div class="app-title">
+              <h1>Colour Mixer</h1>
+            </div>
+            <div class="controls">
+              <form id="mixform">
+                <label>
+                  Colour A
+                  <input
+                    type="text"
+                    id="colA"
+                    placeholder="#ff0000"
+                    maxlength="7"
+                    pattern="^#[0-9A-Fa-f]{6}$"
+                    value="#ff0000"
+                    required
+                  />
+                </label>
+                <label>
+                  Colour B
+                  <input
+                    type="text"
+                    id="colB"
+                    placeholder="#0000ff"
+                    maxlength="7"
+                    pattern="^#[0-9A-Fa-f]{6}$"
+                    value="#0000ff"
+                    required
+                  />
+                </label>
+                <label class="algo-label">
+                  Algorithm
+                  <div class="algo-prefix-container" id="algo-dropdown">
+                    <span class="algo-outer-cont">
+                      <button
+                        type="button"
+                        class="algo-trigger"
+                        id="algo-trigger"
+                      >
+                        sRGB γ-encoded
+                      </button>
+                      <span class="arrow down"></span>
+                    </span>
+                    <div class="algo-menu" id="algo-menu"></div>
+                  </div>
+                </label>
+                <label>
+                  Steps
+                  <input type="number" id="steps" value="21" min="3" max="64" />
+                </label>
+                <button class="mix-btn" type="submit">Mix</button>
+              </form>
+            </div>
+          </div>
+          <div class="swatches-panel">
+            <div id="swatches">
+              <div class="swatch">
+                <div class="color" style="background: rgb(255, 0, 0)"></div>
+                <span class="value-wrapper"
+                  ><span class="hex">#ff0000</span></span
+                ><span class="value-wrapper"
+                  ><span class="rgb">(255,0,0)</span></span
+                >
+              </div>
+              <!-- Swatches will be injected here -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        // 1) Dropdown data & UI
+        const ALGORITHMS = {
+          srgb: "sRGB γ-encoded",
+          linear: "Linear-light sRGB",
+          oklab: "Oklab",
+          okhsv: "OkHSV",
+          cam16ucs: "CAM16-UCS",
+          km_sub: "Kubelka–Munk",
+        };
+        let selected = "srgb";
+
+        const dropdown = document.getElementById("algo-dropdown");
+        const trigger = document.getElementById("algo-trigger");
+        const menu = document.getElementById("algo-menu");
+
+        function buildMenu() {
+          menu.innerHTML = "";
+          Object.entries(ALGORITHMS).forEach(([key, label]) => {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "algo-item";
+            btn.textContent = label;
+            btn.dataset.value = key;
+            btn.addEventListener("click", () => selectAlgo(key));
+            menu.appendChild(btn);
+          });
+        }
+
+        function updateTrigger() {
+          trigger.textContent = ALGORITHMS[selected];
+          menu
+            .querySelectorAll(".algo-item")
+            .forEach((btn) =>
+              btn.classList.toggle("active", btn.dataset.value === selected),
+            );
+        }
+
+        function selectAlgo(key) {
+          selected = key;
+          dropdown.classList.remove("open");
+          updateTrigger();
+        }
+
+function renderChaos(palette){
+  const target = document.getElementById('chaos');
+  if (!target || !Array.isArray(palette) || palette.length === 0) return;
+
+  const first = palette[0];
+  const last  = palette[palette.length - 1];
+  const mid   = palette[Math.floor((palette.length - 1) / 2)]; // first of two middles
+
+  // 45° linear gradient, explicit stops
+    //`linear-gradient(135deg, ${first} 0%, ${mid} 50%, ${last} 100%)`;
+  target.style.backgroundImage =
+    `radial-gradient(circle, ${last} 0%, ${mid} 50%, ${first} 100%)`;
 }
 
-h1 {
-  font-size: 2rem; margin-bottom: 1rem; font-weight: 600;
-}
-.layout {
-  display: flex;
-  gap: 2rem;
-  width: 100%; max-width: 1200px;
-  align-items: flex-start;
-}
-
-.controls {
-  flex: 0 0 300px;
-  display: flex; flex-direction: column;
-}
-.controls form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  width: 100%;
-}
-.controls label {
-  width: 100%;
-}
-.controls input,
-.controls select,
-.controls button {
-  width: 100%;
-}
-.controls label {
-  display: flex; flex-direction: column;
-  font-size: 0.9rem;
-}
-.controls input, .controls select, .controls button {
-  margin-top: 0.25rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 1rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--input-bg);
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-.controls input:focus, .controls select:focus {
-  outline: none; border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(0,95,204,0.2);
-}
-.controls button {
-  background: var(--primary); color: #fff;
-  border: none; cursor: pointer;
-  transition: background 0.2s;
-}
-.controls button:hover {
-  background: var(--primary-light);
-}
-.swatches-panel {
-  flex: 1;
-}
-#swatches {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 1rem;
-  width: 100%;
-  max-width: 960px;
-}
-.swatch {
-  background: rgba(0,0,0,0.02);
-  border-radius: 10px;
-  padding: 0.75rem;
-  # box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.color {
-  width: 38px;
-  height: 38px;
-  border-radius: 0.6rem;
-  border: 1px solid var(--border);
-  margin-bottom: 0.75rem;
-}
-.value-wrapper {
-  position: relative;
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  margin: 2px 0;
-}
-.hex, .rgb {
-  font: 0.82rem/1 "IBM Plex Mono",monospace;
-  padding: 0.14rem 0.25rem;
-  border-radius: 0.25rem;
-  cursor: pointer;
-  transition: 0.25s;
-}
-.hex:hover, .rgb:hover {
-  background: rgba(0,95,204,0.08);
-  color: var(--accent);
-}
-.hex:active, .rgb:active {
-  background: rgba(0,95,204,0.18);
-}
-.tick {
-  position: absolute;
-  left: 100%;
-  margin-left: 0.12rem;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 0.9rem;
-  color: #28a745;
-  pointer-events: none;
-  animation: fade 1s forwards;
-}
-@keyframes fade {
-  to { opacity: 0; }
-} }
-</style>
-</head>
-<body>
-<div class="layout">
-  <div class="controls">
-    <h1>Colour Mixer</h1>
-    <form id="mixform">
-      <label>Colour A
-        <input type="text" id="colA" placeholder="#ff0000" maxlength="7" pattern="^#[0-9A-Fa-f]{6}$" value="#ff0000" required>
-      </label>
-      <label>Colour B
-        <input type="text" id="colB" placeholder="#0000ff" maxlength="7" pattern="^#[0-9A-Fa-f]{6}$" value="#0000ff" required>
-      </label>
-      <label>Algorithm
-        <select id="algo">
-          <option value="srgb">sRGB (γ-encoded)</option>
-          <option value="linear">Linear-light sRGB</option>
-          <option value="oklab">Oklab</option>
-          <option value="okhsv">OkHSV</option>
-          <option value="cam16ucs">CAM16-UCS</option>
-          <option value="km_sub">Kubelka–Munk</option>
-        </select>
-      </label>
-      <label>Steps
-        <input type="number" id="steps" value="21" min="3" max="64">
-      </label>
-      <button type="submit">Mix</button>
-    </form>
-  </div>
-  <div class="swatches-panel">
-    <div id="swatches"></div>
-  </div>
-</div>
-<script>
-(async () => {
-  const form = document.getElementById('mixform');
-  form.addEventListener('submit', async e => {
-    e.preventDefault();
-    const a = document.getElementById('colA').value.replace(/^#/, '');
-    const b = document.getElementById('colB').value.replace(/^#/, '');
-    const algo = document.getElementById('algo').value;
-    const steps = +document.getElementById('steps').value;
-    const resp = await fetch(`/mix?${new URLSearchParams({ algo, a, b, n: steps })}`);
-    const data = await resp.json();
-    const container = document.getElementById('swatches'); container.innerHTML = '';
-    data.forEach(hex => {
-      const rgbVals = hex.slice(1).match(/../g).map(h => parseInt(h, 16));
-      const sw = document.createElement('div'); sw.className = 'swatch';
-      const col = document.createElement('div'); col.className = 'color'; col.style.background = hex;
-      const wrapHex = document.createElement('span'); wrapHex.className = 'value-wrapper';
-      const hexEl = document.createElement('span'); hexEl.className = 'hex'; hexEl.textContent = hex;
-      wrapHex.appendChild(hexEl);
-      const wrapRgb = document.createElement('span'); wrapRgb.className = 'value-wrapper';
-      const rgbEl = document.createElement('span'); rgbEl.className = 'rgb'; rgbEl.textContent = `(${rgbVals.join(',')})`;
-      wrapRgb.appendChild(rgbEl);
-      [hexEl, rgbEl].forEach(el => {
-        el.addEventListener('click', async ev => {
-          ev.stopPropagation();
-          const textToCopy = el === hexEl ? hex : `rgb${el.textContent}`;
-          await navigator.clipboard.writeText(textToCopy);
-          const wrapper = el.parentNode;
-          const tick = document.createElement('span'); tick.className = 'tick'; tick.textContent = '✓';
-          wrapper.appendChild(tick);
-          setTimeout(() => { if (tick.parentNode) tick.parentNode.removeChild(tick); }, 1000);
+        trigger.addEventListener("click", (e) => {
+          e.stopPropagation();
+          dropdown.classList.toggle("open");
         });
+        document.addEventListener("click", () =>
+          dropdown.classList.remove("open"),
+        );
+
+        const form = document.getElementById("mixform");
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const a = document.getElementById("colA").value.replace(/^#/, "");
+          const b = document.getElementById("colB").value.replace(/^#/, "");
+          const n = +document.getElementById("steps").value;
+
+          // use our dropdown choice here
+          const resp = await fetch(
+            `/mix?${new URLSearchParams({
+              algo: selected,
+              a,
+              b,
+              n,
+            })}`,
+          );
+          const data = await resp.json();
+
+          const container = document.getElementById("swatches");
+          container.innerHTML = "";
+
+          data.forEach((hex) => {
+            const rgbVals = hex
+              .slice(1)
+              .match(/../g)
+              .map((h) => parseInt(h, 16));
+
+            const sw = document.createElement("div");
+            sw.className = "swatch";
+            const chip = document.createElement("div");
+            chip.className = "color";
+            chip.style.background = hex;
+
+            const wrapHex = document.createElement("span");
+            wrapHex.className = "value-wrapper";
+            const hexEl = document.createElement("span");
+            hexEl.className = "hex";
+            hexEl.textContent = hex;
+            wrapHex.appendChild(hexEl);
+
+            const wrapRgb = document.createElement("span");
+            wrapRgb.className = "value-wrapper";
+            const rgbEl = document.createElement("span");
+            rgbEl.className = "rgb";
+            rgbEl.textContent = `(${rgbVals.join(",")})`;
+            wrapRgb.appendChild(rgbEl);
+
+            // copy-on-click + tick
+            [hexEl, rgbEl].forEach((el) => {
+              el.addEventListener("click", async (ev) => {
+                ev.stopPropagation();
+                const txt = el === hexEl ? hex : `rgb${el.textContent}`;
+                await navigator.clipboard.writeText(txt);
+
+                const wrapper = el.parentNode;
+                const tick = document.createElement("span");
+                tick.className = "tick";
+                tick.textContent = "✓";
+                wrapper.appendChild(tick);
+                setTimeout(() => {
+                  if (tick.parentNode) tick.parentNode.removeChild(tick);
+                }, 1000);
+              });
+            });
+
+            sw.append(chip, wrapHex, wrapRgb);
+            container.append(sw);
+          });
+
+        renderChaos(data);
+        });
+
+        // Initialize everything
+        buildMenu();
+        updateTrigger();
+        // auto-mix once on load
+        setTimeout(() => form.dispatchEvent(new Event("submit")), 100);
       });
-      sw.append(col, wrapHex, wrapRgb);
-      container.append(sw);
-    });
-  });
-  setTimeout(() => document.querySelector('button').click(), 200);
-})();
-</script>
-</body>
+    </script>
+  </body>
 </html>
 """
 
