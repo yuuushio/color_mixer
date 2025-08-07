@@ -318,11 +318,12 @@ INDEX_HTML = """<!DOCTYPE html>
 <html lang="en"><meta charset="utf-8">
 <title>Elite Color Mixer Demo</title>
 <style>
-body{font-family:sans-serif;margin:2rem;background:#111;color:#eee}
+body{font-family:sans-serif;margin:2rem;background:#f5f5f2;color:#1e1e1e}
 label{display:block;margin:0.5rem 0 0.2rem}
 input[type="color"]{width:4rem;height:2rem;border:none;margin-right:1ch}
-#swatches{display:flex;flex-wrap:wrap;margin-top:1.5rem;gap:4px}
-.sw{width:48px;height:48px;border-radius:4px}
+#swatches{margin-top:1.5rem}
+.row{display:flex;align-items:center;margin:2px 0;font:12px/1.2 monospace}
+.sw{width:48px;height:48px;border-radius:4px;margin-right:6px}
 </style>
 <body>
 <h2>Elite Colour‑Mixer Algorithms</h2>
@@ -356,11 +357,11 @@ document.getElementById('mixform').addEventListener('submit', async (e)=>{
   const div = document.getElementById('swatches');
   div.innerHTML='';
   data.forEach(hex=>{
-    const d=document.createElement('div');
-    d.className='sw';
-    d.style.background=hex;
-    d.title=hex;
-    div.appendChild(d);
+    const rgb=hex.slice(1).match(/../g).map(h=>parseInt(h,16));
+    const row=document.createElement('div');row.className='row';
+    const sw=document.createElement('div');sw.className='sw';sw.style.background=hex;
+    const txt=document.createElement('span');txt.textContent=`#${hex}  rgb(${rgb.join(',')})`;
+    row.appendChild(sw);row.appendChild(txt);div.appendChild(row);
   });
 });
 // auto fire once

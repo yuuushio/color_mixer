@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "coloraide[all]>=4.7.2",
     "colour-science>=0.4.6",
     "flask>=3.1.1",
     "matplotlib>=3.10.5",
