@@ -10,7 +10,7 @@ _GAMMA = 2.4
 _DL = 10.0  # nm step
 
 # ── 1.  Van Wijnen 7-basis spectra (already in the repo) ────────────────────
-from spectra38 import BASE_SPECTRA  # dict with keys W,C,M,Y,R,G,B
+from .spectra38 import BASE_SPECTRA  # dict with keys W,C,M,Y,R,G,B
 
 ORDER = ("W", "C", "M", "Y", "R", "G", "B")
 _BASE = np.stack([BASE_SPECTRA[k] for k in ORDER])  # 7 × 38

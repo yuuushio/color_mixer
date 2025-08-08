@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Colour Mixer</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='styles.css') }}"
+    />
+  </head>
+  <body>
+    <div id="chaos" class="hard-bg">
+      <div class="filtered-bg">
+        <div class="layout">
+          <div class="sidebar">
+            <div class="app-title">
+              <h1>Colour Mixer</h1>
+            </div>
+            <div class="controls">
+              <form id="mixform" autocomplete="off">
+                <label>
+                  Colour A
+                  <input
+                    type="text"
+                    id="colA"
+                    placeholder="#ff0000"
+                    maxlength="7"
+                    pattern="^#[0-9A-Fa-f]{6}$"
+                    value="#ff0000"
+                    required
+                  />
+                </label>
+                <label>
+                  Colour B
+                  <input
+                    type="text"
+                    id="colB"
+                    placeholder="#0000ff"
+                    maxlength="7"
+                    pattern="^#[0-9A-Fa-f]{6}$"
+                    value="#0000ff"
+                    required
+                  />
+                </label>
+                <label class="algo-label">
+                  Algorithm
+                  <div class="algo-prefix-container" id="algo-dropdown">
+                    <span class="algo-outer-cont">
+                      <button
+                        type="button"
+                        class="algo-trigger"
+                        id="algo-trigger"
+                      >
+                        sRGB γ-encoded
+                      </button>
+                      <span class="arrow down"></span>
+                    </span>
+                    <div class="algo-menu" id="algo-menu"></div>
+                  </div>
+                </label>
+                <label>
+                  Steps
+                  <div class="number-field">
+                    <input
+                      type="number"
+                      id="steps"
+                      value="21"
+                      min="3"
+                      max="64"
+                    />
+                    <button
+                      type="button"
+                      class="step-increment-btn"
+                      aria-label="Increment"
+                    >
+                      +
+                    </button>
+                    <button
+                      type="button"
+                      class="step-decrement-btn"
+                      aria-label="Decrement"
+                    >
+                      −
+                    </button>
+                  </div>
+                </label>
+                <button class="mix-btn" type="submit">Mix</button>
+              </form>
+            </div>
+          </div>
+          <div class="swatches-panel">
+            <div id="swatches">
+              <!-- Initial swatches injected by backend or JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+  </body>
+</html>
