@@ -503,13 +503,13 @@ INDEX_HTML = """
         font-size: 0.9rem;
         color: #a3be8c;
         pointer-events: none;
-        animation: fade 1s forwards;
+animation: tickFade var(--tick-duration, 1.5s) ease forwards;
+opacity:1;
       }
-      @keyframes fade {
-        to {
-          opacity: 0;
-        }
-      }
+@keyframes tickFade {
+  50%, 90% { opacity: 1; }  /* visible most of the time */
+  100%    { opacity: 0; }
+}
 
       /* Algorithm dropdown */
       .algo-prefix-container {
@@ -903,13 +903,13 @@ function renderChaos(palette){
                 await navigator.clipboard.writeText(txt);
 
                 const wrapper = el.parentNode;
-                const tick = document.createElement("span");
-                tick.className = "tick";
-                tick.textContent = "✓";
-                wrapper.appendChild(tick);
-                setTimeout(() => {
-                  if (tick.parentNode) tick.parentNode.removeChild(tick);
-                }, 6000);
+const TICK_MS = 1000;
+const tick = document.createElement('span');
+tick.className = 'tick';
+tick.textContent = '✓';
+tick.style.setProperty('--tick-duration', `${TICK_MS}ms`);
+wrapper.appendChild(tick);
+tick.addEventListener('animationend', () => tick.remove());
               });
             });
 
