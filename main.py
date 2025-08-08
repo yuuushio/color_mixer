@@ -604,7 +604,58 @@ INDEX_HTML = """
         background: rgba(216, 222, 233, 0.5);
         color: #5e81ac;
       }
+/* Hide native spinners */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
 
+/* wrapper */
+.number-field { position: relative; width: 100%; }
+.number-field input[type=number] { padding-right: 2.25rem; }
+
+/* buttons */
+.number-field .step-increment-btn,
+.number-field .step-decrement-btn {
+font-family: "Iosevka Nerd Font", monospace;
+  position: absolute;
+  right: 4px;
+  width: 1rem;
+  height: 1rem;       /* square */
+  display: grid;        /* dead-simple centering */
+  place-items: center;
+  padding: 0.05rem;
+  font-size: .81rem;
+  line-height: 1;       /* avoid weird vertical offset */
+  border: none;
+  border-radius: 0.2rem;
+  background: none;
+  color: var(--fg);
+  cursor: pointer;
+  opacity: .25;
+  padding: 0;
+  transition: background .12s ease, transform .06s ease, opacity .12s ease;
+}
+
+.number-field .step-increment-btn { top: 8px; }
+.number-field .step-decrement-btn { bottom: 2px; }
+
+.number-field .step-increment-btn:hover,
+.number-field .step-decrement-btn:hover {
+  opacity: .9;
+}
+
+.number-field .step-increment-btn:active,
+.number-field .step-decrement-btn:active {
+  transform: translateY(1px) scale(.98);
+}
+
+.number-field:focus-within .step-increment-btn,
+.number-field:focus-within .step-decrement-btn { opacity: .85; }
+
+.number-field .step-increment-btn[disabled],
+.number-field .step-decrement-btn[disabled] {
+  opacity: .35; cursor: default;
+}
     </style>
   </head>
   <body>
@@ -659,7 +710,15 @@ INDEX_HTML = """
                 </label>
                 <label>
                   Steps
-                  <input type="number" id="steps" value="21" min="3" max="64" />
+  <div class="number-field">
+    <input type="number" id="steps" value="21" min="3" max="64" />
+    <button type="button" class="step-increment-btn"   aria-label="Increment">
+    +
+    </button>
+    <button type="button" class="step-decrement-btn" aria-label="Decrement">
+-
+    </button>
+  </div>
                 </label>
                 <button class="mix-btn" type="submit">Mix</button>
               </form>
@@ -683,6 +742,45 @@ INDEX_HTML = """
     </div>
 
     <script>
+document.querySelectorAll('input').forEach(el => {
+  el.setAttribute('autocomplete', 'off');
+  el.setAttribute('spellcheck', 'false');
+  el.setAttribute('autocorrect', 'off');
+  el.setAttribute('autocapitalize', 'off');
+});
+document.addEventListener('DOMContentLoaded', () => {
+  const nf = document.querySelector('.number-field');
+  if (!nf) return;
+  const input = nf.querySelector('input[type=number]');
+  const up    = nf.querySelector('.step-increment-btn');
+  const down  = nf.querySelector('.step-decrement-btn');
+
+  function clamp(val) {
+    const min = input.min !== '' ? +input.min : -Infinity;
+    const max = input.max !== '' ? +input.max :  Infinity;
+    return Math.min(max, Math.max(min, val));
+  }
+  function updateDisabled() {
+    const v = +input.value;
+    const min = input.min !== '' ? +input.min : -Infinity;
+    const max = input.max !== '' ? +input.max :  Infinity;
+    up.disabled   = v >= max;
+    down.disabled = v <= min;
+  }
+  function step(dir) {
+    // Use native stepUp/stepDown when possible
+    try { dir > 0 ? input.stepUp() : input.stepDown(); }
+    catch { input.value = clamp((+input.value || 0) + dir * (+input.step || 1)); }
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    updateDisabled();
+  }
+
+  up.addEventListener('click',   () => step(+1));
+  down.addEventListener('click', () => step(-1));
+  input.addEventListener('input', updateDisabled);
+  updateDisabled();
+});
       document.addEventListener("DOMContentLoaded", () => {
         // 1) Dropdown data & UI
         const ALGORITHMS = {
