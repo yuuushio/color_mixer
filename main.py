@@ -371,7 +371,7 @@ INDEX_HTML = """
       }
 
       .controls {
-        background: rgba(229, 233, 240, 0.1);
+        background: rgba(216, 222, 233, 0.5);
         backdrop-filter: blur(6px);
         padding: 1rem;
         border: 1px solid rgba(76, 86, 106, 0.08);
@@ -811,7 +811,7 @@ function renderChaos(palette){
                 wrapper.appendChild(tick);
                 setTimeout(() => {
                   if (tick.parentNode) tick.parentNode.removeChild(tick);
-                }, 1000);
+                }, 6000);
               });
             });
 
