@@ -395,43 +395,85 @@
     },
   };
 
+  async function copyText(txt, btn) {
+    try {
+      await navigator.clipboard.writeText(txt);
+      flash(btn, "Copied!");
+      return true;
+    } catch {
+      // fallback path for non-secure contexts / older browsers
+      const ta = document.createElement("textarea");
+      ta.value = txt;
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      flash(btn, ok ? "Copied!" : "Copy failed");
+      return ok;
+    }
+  }
+
+  function flash(btn, msg) {
+    if (!btn) return;
+    const old = btn.getAttribute("aria-label") || "";
+    btn.classList.add("copied");
+    btn.setAttribute("aria-label", msg);
+    setTimeout(() => {
+      btn.classList.remove("copied");
+      btn.setAttribute("aria-label", old);
+    }, 900);
+  }
+
   class GhosttyUI {
     constructor() {
-      this.src = $("#ghostty-src");
-      this.out = $("#ghostty-css");
-      this.btn = $("#ghostty-generate");
-      this.copy = $("#ghostty-copy");
-
-      if (!this.src || !this.out || !this.btn) return;
+      this.src = document.querySelector("#ghostty-src");
+      this.out = document.querySelector("#ghostty-css");
+      this.btn = document.querySelector("#ghostty-generate");
+      this.copy = document.querySelector("#lab-copy");
 
       this.K_IN = "ghostty:src";
       this.K_OUT = "ghostty:css:text";
 
-      const sIn = sessionStorage.getItem(this.K_IN);
-      const sOut = sessionStorage.getItem(this.K_OUT);
-      if (sIn) this.src.value = sIn;
-      if (sOut) Ghostty.renderOutput(this.out, sOut);
+      // hydrate inputs and output
+      if (this.src) {
+        const sIn = sessionStorage.getItem(this.K_IN);
+        if (sIn) this.src.value = sIn;
+        this.src.addEventListener("input", () =>
+          sessionStorage.setItem(this.K_IN, this.src.value),
+        );
+      }
+      if (this.out) {
+        const sOut = sessionStorage.getItem(this.K_OUT);
+        if (sOut) Ghostty.renderOutput(this.out, sOut);
+      }
 
-      this.src.addEventListener("input", () =>
-        sessionStorage.setItem(this.K_IN, this.src.value),
-      );
-      this.btn.addEventListener("click", () => this.generate());
+      // wire buttons (individually; no early bail)
+      if (this.btn) this.btn.addEventListener("click", () => this.generate());
 
       if (this.copy) {
         this.copy.addEventListener("click", async () => {
-          const txt =
-            sessionStorage.getItem(this.K_OUT) || Ghostty.collectText(this.out);
-          await navigator.clipboard.writeText(txt);
-          this.copy.textContent = "Copied!";
-          setTimeout(() => (this.copy.textContent = "Copy"), 1000);
+          // If nothing rendered yet but we have input, generate now.
+          if (
+            this.out &&
+            !this.out.textContent.trim() &&
+            this.src?.value.trim()
+          ) {
+            this.generate();
+          }
+          const txt = this.out ? Ghostty.collectText(this.out).trim() : "";
+          if (!txt) return flash(this.copy, "Nothing to copy");
+          await copyText(txt, this.copy);
         });
       }
     }
 
     generate() {
-      const vars = Ghostty.toVars(this.src.value);
+      const vars = Ghostty.toVars(this.src?.value || "");
       const text = Ghostty.formatRoot(vars);
-      Ghostty.renderOutput(this.out, text);
+      if (this.out) Ghostty.renderOutput(this.out, text);
       sessionStorage.setItem(this.K_OUT, text);
     }
   }
@@ -534,9 +576,18 @@
   document.addEventListener("DOMContentLoaded", () => {
     new NumberField(".number-field");
     new GhosttyUI();
+
+    const savedFmt = sessionStorage.getItem("lab:format") || "css";
+    new Dropdown("#format-dropdown", {
+      items: { css: "CSS", nvim: "nvim" },
+      value: savedFmt,
+      itemClass: "algo-item",
+      onSelect: (v) => sessionStorage.setItem("lab:format", v),
+      // no triggerSel/menuSel needed if your HTML has data-trigger / data-menu
+    });
+
     initMixerWithDropdown();
 
-    // Tabs (safe if markup missing)
     new Tabs(
       [
         { btn: "#tab-btn-mix", panel: "#tab-mix" },

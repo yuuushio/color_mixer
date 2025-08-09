@@ -157,12 +157,51 @@
                   <!-- optional -->
                   <button
                     type="button"
-                    class="lab-copy"
-                    id="ghostty-copy"
+                    class="icon-btn"
+                    id="lab-copy"
                     title="Copy all"
+                    aria-label="Copied"
                   >
-                    Copy
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="18"
+                      height="18"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M9 3h6a1 1 0 0 1 1 1v1h1.25A1.75 1.75 0 0 1 19 6.75v11.5A1.75 1.75 0 0 1 17.25 20H6.75A1.75 1.75 0 0 1 5 18.25V6.75A1.75 1.75 0 0 1 6.75 5H8V4a1 1 0 0 1 1-1Z"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <rect
+                        x="9"
+                        y="3"
+                        width="6"
+                        height="3.5"
+                        rx="0.75"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                      />
+                    </svg>
                   </button>
+                  <div class="format-prefix-container" id="format-dropdown">
+                    <span class="algo-outer-cont">
+                      <button
+                        type="button"
+                        class="format-trigger"
+                        id="format-trigger"
+                        data-trigger
+                      >
+                        CSS
+                      </button>
+                      <span class="arrow down"></span>
+                    </span>
+                    <div class="format-menu" id="format-menu" data-menu></div>
+                  </div>
                 </div>
 
                 <div
