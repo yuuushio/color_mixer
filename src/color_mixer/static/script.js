@@ -5,37 +5,77 @@ document.querySelectorAll("input").forEach((el) => {
   el.setAttribute("autocapitalize", "off");
 });
 
-// -------------------- Ghostty → :root { --vars } --------------------
 document.addEventListener("DOMContentLoaded", () => {
   const src = document.getElementById("ghostty-src");
-  const out = document.getElementById("ghostty-css");
+  const out = document.getElementById("ghostty-css"); // now a DIV
   const btn = document.getElementById("ghostty-generate");
+  const copyBtn = document.getElementById("ghostty-copy"); // optional
 
   if (!src || !out || !btn) return;
 
-  // Persist between tab switches
   const K_IN = "ghostty:src";
-  const K_OUT = "ghostty:css";
+  const K_OUT = "ghostty:css:text"; // store pure text for easy copy
+
+  // restore persisted input/output
   const sIn = sessionStorage.getItem(K_IN);
   const sOut = sessionStorage.getItem(K_OUT);
   if (sIn) src.value = sIn;
-  if (sOut) out.value = sOut;
+  if (sOut) renderTextIntoOutput(out, sOut); // render the saved text with swatches
 
   src.addEventListener("input", () => sessionStorage.setItem(K_IN, src.value));
-  out.addEventListener("input", () => sessionStorage.setItem(K_OUT, out.value));
 
   btn.addEventListener("click", () => {
     const vars = ghosttyToVars(src.value);
-    out.value = formatCssRoot(vars);
-    sessionStorage.setItem(K_OUT, out.value);
-    // Optional: select for quick copy UX
-    out.focus();
-    out.select();
+    const text = formatCssRootText(vars); // pure text
+    renderTextIntoOutput(out, text); // HTML with swatches
+    sessionStorage.setItem(K_OUT, text);
   });
 
-  // --- helpers ---
+  // Optional: one-click copy
+  if (copyBtn) {
+    copyBtn.addEventListener("click", async () => {
+      const txt = sessionStorage.getItem(K_OUT) || collectOutputText(out);
+      await navigator.clipboard.writeText(txt);
+      copyBtn.textContent = "Copied!";
+      setTimeout(() => (copyBtn.textContent = "Copy"), 1000);
+    });
+  }
+
+  // ---- helpers ----
+  function renderTextIntoOutput(container, text) {
+    container.innerHTML = ""; // clear
+    const pre = document.createElement("pre");
+    const code = document.createElement("code");
+    const HEX_LINE =
+      /^\s*(--[a-z0-9-]+)\s*:\s*(#(?:[0-9a-f]{6}|[0-9a-f]{3}))(?![0-9a-f])\s*;?/i;
+
+    // split into lines and decorate ANSI lines with a swatch
+    const lines = text.split(/\r?\n/);
+    for (const line of lines) {
+      // match "  --ansi-12: #81a1c1;" etc.
+      const m = line.match(HEX_LINE);
+      const span = document.createElement("span");
+      span.className = "decl";
+      span.textContent = line;
+
+      if (m) {
+        span.classList.add("has-swatch");
+        span.style.setProperty("--sw", m[2]); // the hex we captured
+      }
+      code.appendChild(span);
+      // code.appendChild(document.createTextNode("\n"));
+    }
+
+    pre.appendChild(code);
+    container.appendChild(pre);
+  }
+
+  function collectOutputText(container) {
+    // get plain text without the pseudo-elements
+    return container.innerText.replace(/\u200B/g, "");
+  }
+
   function ghosttyToVars(text) {
-    // Collect keys + palette[0..15]
     const kv = {};
     const palette = Array(16).fill(null);
 
@@ -49,8 +89,6 @@ document.addEventListener("DOMContentLoaded", () => {
         line.startsWith("//")
       )
         continue;
-
-      // strip trailing comments `;` or `//` (NOT `#` — hex colors use it)
       line = line.replace(/\s*(?:;|\/\/).*$/, "").trim();
       if (!line) continue;
 
@@ -59,7 +97,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const key = m[1].trim().toLowerCase();
       const val = m[2].trim();
 
-      // palette cases
       let pSingle = key.match(/^palette[\.\[]?(\d+)\]?$/);
       if (pSingle) {
         const idx = Number(pSingle[1]);
@@ -67,15 +104,13 @@ document.addEventListener("DOMContentLoaded", () => {
         continue;
       }
       if (key === "palette") {
-        // Support lines like: "palette = 0=#112233" (one or more pairs)
-        // and also "palette = #112233 #445566 ..." (list form)
-        const pairs = val.split(/[\s,]+/).filter(Boolean);
+        const parts = val.split(/[\s,]+/).filter(Boolean);
         let anyPair = false;
-        for (const t of pairs) {
-          const m = t.match(/^(\d{1,2})\s*=\s*(.+)$/);
-          if (m) {
-            const idx = Number(m[1]);
-            const c = normColor(m[2]);
+        for (const t of parts) {
+          const pm = t.match(/^(\d{1,2})\s*=\s*(.+)$/);
+          if (pm) {
+            const idx = Number(pm[1]);
+            const c = normColor(pm[2]);
             if (idx >= 0 && idx < 16 && c) {
               palette[idx] = c;
               anyPair = true;
@@ -83,49 +118,37 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
         if (!anyPair) {
-          // treat as simple list of colors
-          const colors = pairs.map(normColor).filter(Boolean);
+          const colors = parts.map(normColor).filter(Boolean);
           for (let i = 0; i < Math.min(colors.length, 16); i++)
             palette[i] = colors[i];
         }
         continue;
       }
-
-      // everything else: map to variables
       kv[key] = normColor(val) || val;
     }
 
-    // Build css var map
     const out = new Map();
-
-    // Friendly aliases
     const alias = [
       ["background", "--bg"],
       ["foreground", "--fg"],
-      ["cursor", "--cursor"],
       ["cursor-color", "--cursor"],
-      ["cursor_text", "--cursor-text"],
+      ["cursor", "--cursor"],
       ["cursor-text", "--cursor-text"],
-      ["selection_background", "--selection-bg"],
       ["selection-background", "--selection-bg"],
-      ["selection_foreground", "--selection-fg"],
       ["selection-foreground", "--selection-fg"],
     ];
     for (const [k, v] of Object.entries(kv)) {
-      const al = alias.find(([name]) => name === k);
-      const varName = al ? al[1] : `--ghostty-${k.replace(/[^a-z0-9]+/g, "-")}`;
+      const found = alias.find(([name]) => name === k);
+      const varName = found
+        ? found[1]
+        : `--ghostty-${k.replace(/[^a-z0-9]+/g, "-")}`;
       out.set(varName, v);
     }
-
-    palette.forEach((c, i) => {
-      if (c) out.set(`--ansi-${i}`, c);
-    });
-
+    palette.forEach((c, i) => c && out.set(`--ansi-${i}`, c));
     return out;
   }
 
-  function formatCssRoot(varsMap) {
-    // Prefer a neat, grouped order: bg/fg, cursor, selection, palette…
+  function formatCssRootText(varsMap) {
     const order = [
       "--bg",
       "--fg",
@@ -134,25 +157,25 @@ document.addEventListener("DOMContentLoaded", () => {
       "--selection-fg",
       ...Array.from({ length: 16 }, (_, i) => `--ansi-${i}`),
     ];
-    const known = [];
-    const rest = [];
-
-    for (const [k, v] of varsMap.entries()) {
-      if (order.includes(k)) known.push([k, v]);
-      else rest.push([k, v]);
-    }
+    const known = [],
+      rest = [];
+    for (const [k, v] of varsMap.entries())
+      (order.includes(k) ? known : rest).push([k, v]);
     known.sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
     rest.sort((a, b) => a[0].localeCompare(b[0]));
 
-    const lines = [...known, ...rest].map(([k, v]) => `  ${k}: ${v};`);
-    return `:root {\n${lines.join("\n")}\n}\n`;
+    const lines = [
+      ":root {",
+      ...[...known, ...rest].map(([k, v]) => `  ${k}: ${v};`),
+      "}",
+    ];
+    return lines.join("\n");
   }
 
   function normColor(token) {
     if (!token) return null;
     let t = token.trim();
 
-    // rgba/ rgb
     const rgb = t.match(
       /^rgba?\s*\(\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})/i,
     );
@@ -162,12 +185,10 @@ document.addEventListener("DOMContentLoaded", () => {
         b = clamp255(+rgb[3]);
       return `#${hex2(r)}${hex2(g)}${hex2(b)}`;
     }
-    // 0xRRGGBB / #RRGGBB / #RGB
     const hex = t.match(/^(0x[0-9a-f]{6}|#[0-9a-f]{3,8})$/i);
     if (hex) {
       let h = hex[1].toLowerCase();
       if (h.startsWith("0x")) h = `#${h.slice(2)}`;
-      // expand #rgb → #rrggbb
       if (/^#[0-9a-f]{3}$/i.test(h)) {
         h =
           "#" +
@@ -177,17 +198,12 @@ document.addEventListener("DOMContentLoaded", () => {
             .map((ch) => ch + ch)
             .join("");
       }
-      return h.slice(0, 7); // drop alpha if present
+      return h.slice(0, 7);
     }
     return null;
   }
-
-  function clamp255(x) {
-    return Math.max(0, Math.min(255, x | 0));
-  }
-  function hex2(n) {
-    return n.toString(16).padStart(2, "0");
-  }
+  const clamp255 = (x) => Math.max(0, Math.min(255, x | 0));
+  const hex2 = (n) => n.toString(16).padStart(2, "0");
 });
 
 document.addEventListener("DOMContentLoaded", () => {

@@ -650,3 +650,52 @@ button {
     order: 3;
   }
 }
+
+/* output as text-with-swatches */
+.lab-output {
+  padding: 0; /* let <pre> own the padding */
+  overflow: auto;
+}
+.lab-output pre {
+  margin: 0;
+  padding: 1rem;
+  white-space: normal;
+  font-family: "Iosevka Nerd Font", ui-monospace, monospace;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.lab-output code {
+  display: block;
+}
+
+/* one declaration per line */
+.lab-output .decl {
+  position: relative;
+  display: block;
+  padding-left: 1.5rem; /* room for the square */
+}
+
+/* optional tiny copy button look */
+.lab-copy {
+  margin-left: 0.5rem;
+  border: 1px solid color-mix(in oklab, var(--fg, #000) 10%, transparent);
+  background: color-mix(in oklab, var(--bg, #fff) 85%, transparent);
+  border-radius: 10px;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+}
+.lab-output .decl.has-swatch::before {
+  content: "";
+  position: absolute;
+  left: 0.25rem;
+  top: 0.28em;
+  width: 0.8em;
+  height: 0.8em;
+  border-radius: 0.3em;
+  background: var(--sw, transparent);
+  border: none;
+  pointer-events: none;
+  user-select: none;
+
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
