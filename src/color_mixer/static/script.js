@@ -182,6 +182,56 @@ document.addEventListener("DOMContentLoaded", () => {
     renderChaos(data);
   });
 
+  // ---- Tabs: instant, stateful, ARIA-correct ----
+  (function initTabs() {
+    const TABS = [
+      { btn: "#tab-btn-mix", panel: "#tab-mix" },
+      { btn: "#tab-btn-blank", panel: "#tab-blank" },
+    ];
+    const $ = (s, r = document) => r.querySelector(s);
+
+    const saved = sessionStorage.getItem("activeTab") || "tab-mix";
+    activate(saved);
+
+    TABS.forEach(({ btn }) => {
+      $(btn).addEventListener("click", (e) => {
+        e.preventDefault();
+        activate(e.currentTarget.id.replace("tab-btn", "tab")); // no '#'
+      });
+      $(btn).addEventListener("keydown", (e) => {
+        // Arrow key roving focus
+        const idx = TABS.findIndex((t) => t.btn === `#${e.currentTarget.id}`);
+        if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+          e.preventDefault();
+          $(TABS[(idx + 1) % TABS.length].btn).focus();
+        } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+          e.preventDefault();
+          $(TABS[(idx - 1 + TABS.length) % TABS.length].btn).focus();
+        } else if (e.key === "Home") {
+          e.preventDefault();
+          $(TABS[0].btn).focus();
+        } else if (e.key === "End") {
+          e.preventDefault();
+          $(TABS[TABS.length - 1].btn).focus();
+        } else if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          activate(`#${e.currentTarget.id}`.replace("tab-btn", "tab"));
+        }
+      });
+    });
+
+    function activate(panelId) {
+      const id = panelId.replace(/^#/, ""); // normalize
+      TABS.forEach(({ btn, panel }) => {
+        const isActive = panel === `#${id}`;
+        $(btn).classList.toggle("is-active", isActive);
+        $(btn).setAttribute("aria-selected", String(isActive));
+        $(panel).classList.toggle("is-active", isActive);
+      });
+      sessionStorage.setItem("activeTab", panelId);
+    }
+  })();
+
   // Initialize everything
   buildMenu();
   updateTrigger();

@@ -66,7 +66,6 @@ h1 {
   /* box-shadow: rgba(17, 17, 26, 0.1) 0px 1px 0px; */
 }
 .filtered-bg {
-  padding: 4rem 2rem;
   background: rgba(236, 239, 244, 0.9);
   backdrop-filter: saturate(180%) blur(15px);
   overflow: auto;
@@ -167,7 +166,7 @@ h1 {
   max-width: 960px;
 }
 .swatch {
-  background: rgba(229, 233, 240, 0.1);
+  background: rgba(229, 233, 240, 0.3);
   border: none;
   border-radius: 10px;
   padding: 0.75rem;
@@ -392,4 +391,191 @@ input[type="number"] {
 .number-field .step-decrement-btn[disabled] {
   opacity: 0.35;
   cursor: default;
+}
+
+/* ---------- Tabs---------- */
+/* Panels toggle without layout thrash; content stays mounted (state persists) */
+.tab-panel {
+  display: none;
+}
+.tab-panel.is-active {
+  display: block;
+}
+
+/* Optional nicety for the blank panel */
+.blank-wrap {
+  max-width: 960px;
+  margin: 1.5rem auto;
+  padding: 1.25rem;
+  border: 1px dashed var(--border, #d1d9e6);
+  border-radius: 12px;
+  background: color-mix(in oklab, white 70%, transparent);
+}
+.blank-wrap .muted {
+  margin-top: 0.25rem;
+  color: color-mix(in oklab, var(--fg, #171717) 55%, white);
+  font-size: 0.9rem;
+}
+.swatches-panel {
+  display: grid;
+  margin-top: 1.5rem;
+  grid-template-rows: auto 1fr; /* row 1 = tabbar, row 2 = content */
+  gap: 0.75rem;
+  height: 100%;
+  width: 100%;
+  min-height: 0; /* critical so the scroller can size */
+}
+
+.tabbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: inline-flex;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  background: transparent;
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--border, #d1d9e6);
+}
+
+/* Center the content area horizontally; it scrolls under the sticky bar */
+.tabpanel-wrap {
+  overflow: auto;
+  min-height: 0;
+  display: flex;
+  justify-content: center; /* <<< centers content */
+  align-items: flex-start; /* content starts below tabs, not vertically centered */
+  padding: 0 1rem 2rem; /* side breathing room + bottom padding for last row */
+}
+
+/* A max-width "rail" so panels don’t span the whole screen */
+.tabpanel {
+  display: none;
+  width: 100%;
+  max-width: 1000px; /* tune to taste */
+}
+.tabpanel.is-active {
+  display: block;
+}
+
+/* Your swatch grid now naturally centers inside the rail */
+#swatches {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+}
+
+/* Optional: make the tab buttons’ footprint stable */
+.tabbar button {
+  line-height: 1.1;
+  padding: 0.4rem 0.7rem;
+  white-space: nowrap;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .tab-indicator {
+    transition: none;
+  }
+}
+
+/* Bar that stays put; spans the column but just centers its child */
+.topnav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 0;
+}
+
+/* Wrapper sized by its contents, equal-width 2-column grid */
+.tabwrap {
+  --gap: 0.5rem;
+  --pad: 0;
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* equal widths */
+  gap: var(--gap);
+  padding: var(--pad);
+  border-radius: 0.6rem;
+  width: max-content;
+  overflow: hidden; /* guards sub-pixel overflow */
+  background: rgba(216, 222, 233, 0.5);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  box-shadow:
+    rgba(50, 50, 93, 0.25) 0px 2px 5px -1px,
+    rgba(0, 0, 0, 0.3) 0px 1px 3px -1px;
+  box-shadow:
+    rgba(0, 0, 0, 0.1) 0px 0px 5px 0px,
+    rgba(0, 0, 0, 0.1) 0px 0px 1px 0px;
+}
+
+/* Single animated underlay; EXACT width of one tab cell */
+.tabwrap .slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: calc((100% - var(--gap)) / 2);
+  border-radius: 0.6rem;
+  background: rgba(180, 142, 173, 0.08);
+  transform: translateX(0);
+  transition: transform 0.25s cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: transform;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Slide right when the second tab is active */
+.tabwrap:has(#tab-btn-blank.is-active) .slider {
+  transform: translateX(calc(100% + var(--gap)));
+}
+
+/* Tabs fill their grid cell; text centered */
+.tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0.65rem 1.75rem;
+  border-radius: 999px;
+  font-family: "IBM Plex Mono";
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+  color: var(--fg, #171717);
+  opacity: 0.45;
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+  z-index: 1; /* over the slider */
+  transition:
+    color 0.15s ease,
+    opacity 0.15s ease;
+}
+.tab:hover {
+  opacity: 0.75;
+}
+.tab.is-active {
+  opacity: 1;
+  color: #5e81ac;
+}
+.tab:focus-visible {
+  outline: 2px solid var(--primary, #005fcc);
+  outline-offset: 2px;
+}
+
+/* Panels stay mounted; visibility only (state persists) */
+.tab-panel {
+  display: none;
+}
+.tab-panel.is-active {
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabwrap .slider {
+    transition: none;
+  }
 }
