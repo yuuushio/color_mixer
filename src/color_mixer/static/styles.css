@@ -1,5 +1,4 @@
 @import url("https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap");
 
 :root {
   --bg: #eceff4;
@@ -190,7 +189,7 @@ h1 {
 .hex,
 .rgb {
   font:
-    0.82rem/1 "IBM Plex Mono",
+    0.82rem/1 "Iosevka Nerd Font",
     monospace;
   padding: 0.14rem 0.25rem;
   border-radius: 0.25rem;
@@ -506,7 +505,8 @@ input[type="number"] {
   height: 100%;
   width: calc((100% - var(--gap)) / 2);
   border-radius: 0.6rem;
-  background: rgba(180, 142, 173, 0.08);
+  background: rgba(26, 88, 255, 0.08);
+  background: rgba(143, 188, 187, 0.12);
   transform: translateX(0);
   transition: transform 0.25s cubic-bezier(0.22, 0.61, 0.36, 1);
   will-change: transform;
@@ -526,7 +526,7 @@ input[type="number"] {
   background: transparent;
   padding: 0.65rem 1.75rem;
   border-radius: 999px;
-  font-family: "IBM Plex Mono";
+  font-family: "Iosevka Nerd Font";
   font-size: 0.9rem;
   letter-spacing: 0.02em;
   color: var(--fg, #171717);
@@ -540,7 +540,7 @@ input[type="number"] {
     opacity 0.15s ease;
 }
 .tab:hover {
-  opacity: 0.75;
+  opacity: 0.55;
 }
 .tab.is-active {
   opacity: 1;
