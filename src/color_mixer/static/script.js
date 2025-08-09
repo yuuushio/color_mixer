@@ -4,6 +4,192 @@ document.querySelectorAll("input").forEach((el) => {
   el.setAttribute("autocorrect", "off");
   el.setAttribute("autocapitalize", "off");
 });
+
+// -------------------- Ghostty → :root { --vars } --------------------
+document.addEventListener("DOMContentLoaded", () => {
+  const src = document.getElementById("ghostty-src");
+  const out = document.getElementById("ghostty-css");
+  const btn = document.getElementById("ghostty-generate");
+
+  if (!src || !out || !btn) return;
+
+  // Persist between tab switches
+  const K_IN = "ghostty:src";
+  const K_OUT = "ghostty:css";
+  const sIn = sessionStorage.getItem(K_IN);
+  const sOut = sessionStorage.getItem(K_OUT);
+  if (sIn) src.value = sIn;
+  if (sOut) out.value = sOut;
+
+  src.addEventListener("input", () => sessionStorage.setItem(K_IN, src.value));
+  out.addEventListener("input", () => sessionStorage.setItem(K_OUT, out.value));
+
+  btn.addEventListener("click", () => {
+    const vars = ghosttyToVars(src.value);
+    out.value = formatCssRoot(vars);
+    sessionStorage.setItem(K_OUT, out.value);
+    // Optional: select for quick copy UX
+    out.focus();
+    out.select();
+  });
+
+  // --- helpers ---
+  function ghosttyToVars(text) {
+    // Collect keys + palette[0..15]
+    const kv = {};
+    const palette = Array(16).fill(null);
+
+    const lines = text.split(/\r?\n/);
+    for (let raw of lines) {
+      let line = raw.trim();
+      if (
+        !line ||
+        line.startsWith(";") ||
+        line.startsWith("#") ||
+        line.startsWith("//")
+      )
+        continue;
+
+      // strip trailing comments `;` or `//` (NOT `#` — hex colors use it)
+      line = line.replace(/\s*(?:;|\/\/).*$/, "").trim();
+      if (!line) continue;
+
+      const m = line.match(/^([^=]+)=(.+)$/);
+      if (!m) continue;
+      const key = m[1].trim().toLowerCase();
+      const val = m[2].trim();
+
+      // palette cases
+      let pSingle = key.match(/^palette[\.\[]?(\d+)\]?$/);
+      if (pSingle) {
+        const idx = Number(pSingle[1]);
+        if (idx >= 0 && idx < 16) palette[idx] = normColor(val);
+        continue;
+      }
+      if (key === "palette") {
+        // Support lines like: "palette = 0=#112233" (one or more pairs)
+        // and also "palette = #112233 #445566 ..." (list form)
+        const pairs = val.split(/[\s,]+/).filter(Boolean);
+        let anyPair = false;
+        for (const t of pairs) {
+          const m = t.match(/^(\d{1,2})\s*=\s*(.+)$/);
+          if (m) {
+            const idx = Number(m[1]);
+            const c = normColor(m[2]);
+            if (idx >= 0 && idx < 16 && c) {
+              palette[idx] = c;
+              anyPair = true;
+            }
+          }
+        }
+        if (!anyPair) {
+          // treat as simple list of colors
+          const colors = pairs.map(normColor).filter(Boolean);
+          for (let i = 0; i < Math.min(colors.length, 16); i++)
+            palette[i] = colors[i];
+        }
+        continue;
+      }
+
+      // everything else: map to variables
+      kv[key] = normColor(val) || val;
+    }
+
+    // Build css var map
+    const out = new Map();
+
+    // Friendly aliases
+    const alias = [
+      ["background", "--bg"],
+      ["foreground", "--fg"],
+      ["cursor", "--cursor"],
+      ["cursor-color", "--cursor"],
+      ["cursor_text", "--cursor-text"],
+      ["cursor-text", "--cursor-text"],
+      ["selection_background", "--selection-bg"],
+      ["selection-background", "--selection-bg"],
+      ["selection_foreground", "--selection-fg"],
+      ["selection-foreground", "--selection-fg"],
+    ];
+    for (const [k, v] of Object.entries(kv)) {
+      const al = alias.find(([name]) => name === k);
+      const varName = al ? al[1] : `--ghostty-${k.replace(/[^a-z0-9]+/g, "-")}`;
+      out.set(varName, v);
+    }
+
+    palette.forEach((c, i) => {
+      if (c) out.set(`--ansi-${i}`, c);
+    });
+
+    return out;
+  }
+
+  function formatCssRoot(varsMap) {
+    // Prefer a neat, grouped order: bg/fg, cursor, selection, palette…
+    const order = [
+      "--bg",
+      "--fg",
+      "--cursor",
+      "--selection-bg",
+      "--selection-fg",
+      ...Array.from({ length: 16 }, (_, i) => `--ansi-${i}`),
+    ];
+    const known = [];
+    const rest = [];
+
+    for (const [k, v] of varsMap.entries()) {
+      if (order.includes(k)) known.push([k, v]);
+      else rest.push([k, v]);
+    }
+    known.sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
+    rest.sort((a, b) => a[0].localeCompare(b[0]));
+
+    const lines = [...known, ...rest].map(([k, v]) => `  ${k}: ${v};`);
+    return `:root {\n${lines.join("\n")}\n}\n`;
+  }
+
+  function normColor(token) {
+    if (!token) return null;
+    let t = token.trim();
+
+    // rgba/ rgb
+    const rgb = t.match(
+      /^rgba?\s*\(\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})/i,
+    );
+    if (rgb) {
+      const r = clamp255(+rgb[1]),
+        g = clamp255(+rgb[2]),
+        b = clamp255(+rgb[3]);
+      return `#${hex2(r)}${hex2(g)}${hex2(b)}`;
+    }
+    // 0xRRGGBB / #RRGGBB / #RGB
+    const hex = t.match(/^(0x[0-9a-f]{6}|#[0-9a-f]{3,8})$/i);
+    if (hex) {
+      let h = hex[1].toLowerCase();
+      if (h.startsWith("0x")) h = `#${h.slice(2)}`;
+      // expand #rgb → #rrggbb
+      if (/^#[0-9a-f]{3}$/i.test(h)) {
+        h =
+          "#" +
+          h
+            .slice(1)
+            .split("")
+            .map((ch) => ch + ch)
+            .join("");
+      }
+      return h.slice(0, 7); // drop alpha if present
+    }
+    return null;
+  }
+
+  function clamp255(x) {
+    return Math.max(0, Math.min(255, x | 0));
+  }
+  function hex2(n) {
+    return n.toString(16).padStart(2, "0");
+  }
+});
+
 document.addEventListener("DOMContentLoaded", () => {
   const nf = document.querySelector(".number-field");
   if (!nf) return;
@@ -227,6 +413,8 @@ document.addEventListener("DOMContentLoaded", () => {
         $(btn).classList.toggle("is-active", isActive);
         $(btn).setAttribute("aria-selected", String(isActive));
         $(panel).classList.toggle("is-active", isActive);
+        // hard hide/show to avoid any accidental CSS overrides
+        $(panel).toggleAttribute("hidden", !isActive);
       });
       sessionStorage.setItem("activeTab", panelId);
     }

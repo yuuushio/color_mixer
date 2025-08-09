@@ -27,6 +27,7 @@ body {
   align-items: flex-start;
   padding: 0;
   overflow: hidden;
+  margin: 0;
 }
 .hard-bg {
   background: #eeaeca;
@@ -76,6 +77,7 @@ h1 {
   gap: 2rem;
   width: 100%;
   max-width: 1200px;
+  margin: 0 auto;
   align-items: flex-start;
 }
 
@@ -155,15 +157,9 @@ h1 {
   background: #9dc3c3;
 }
 
-.swatches-panel {
-  flex: 1;
-}
-#swatches {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
-  gap: 1rem;
-  width: 100%;
-  max-width: 960px;
+.layout .swatches-panel {
+  flex: 1 1 auto; /* take remaining width next to the sidebar */
+  min-width: 0; /* allow the grid inside to shrink instead of pushing sidebar */
 }
 .swatch {
   background: rgba(229, 233, 240, 0.3);
@@ -394,13 +390,6 @@ input[type="number"] {
 }
 
 /* ---------- Tabs---------- */
-/* Panels toggle without layout thrash; content stays mounted (state persists) */
-.tab-panel {
-  display: none;
-}
-.tab-panel.is-active {
-  display: block;
-}
 
 /* Optional nicety for the blank panel */
 .blank-wrap {
@@ -416,13 +405,14 @@ input[type="number"] {
   color: color-mix(in oklab, var(--fg, #171717) 55%, white);
   font-size: 0.9rem;
 }
-.swatches-panel {
+.swatches-view {
   display: grid;
-  margin-top: 1.5rem;
+  /* margin-top: 1.5rem; */
   grid-template-rows: auto 1fr; /* row 1 = tabbar, row 2 = content */
   gap: 0.75rem;
   height: 100%;
   width: 100%;
+  overflow: visible;
   min-height: 0; /* critical so the scroller can size */
 }
 
@@ -439,31 +429,24 @@ input[type="number"] {
 }
 
 /* Center the content area horizontally; it scrolls under the sticky bar */
+
 .tabpanel-wrap {
-  overflow: auto;
+  /* let the page-level .filtered-bg scroll; this one should not */
+  overflow: visible; /* or simply remove the property */
   min-height: 0;
   display: flex;
-  justify-content: center; /* <<< centers content */
-  align-items: flex-start; /* content starts below tabs, not vertically centered */
-  padding: 0 1rem 2rem; /* side breathing room + bottom padding for last row */
+  justify-content: center;
+  align-items: flex-start;
+  padding: 0 1rem 2rem;
 }
 
-/* A max-width "rail" so panels don’t span the whole screen */
-.tabpanel {
-  display: none;
-  width: 100%;
-  max-width: 1000px; /* tune to taste */
-}
-.tabpanel.is-active {
-  display: block;
-}
-
-/* Your swatch grid now naturally centers inside the rail */
 #swatches {
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fill, 140px);
   gap: 1rem;
+  /* max-width: 800px;  */
+  justify-content: center;
 }
 
 /* Optional: make the tab buttons’ footprint stable */
@@ -483,6 +466,8 @@ input[type="number"] {
 /* Bar that stays put; spans the column but just centers its child */
 .topnav {
   position: sticky;
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
   top: 0;
   z-index: 10;
   display: flex;
@@ -566,16 +551,102 @@ input[type="number"] {
   outline-offset: 2px;
 }
 
-/* Panels stay mounted; visibility only (state persists) */
-.tab-panel {
-  display: none;
-}
-.tab-panel.is-active {
-  display: block;
+button {
+  outline: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .tabwrap .slider {
     transition: none;
+  }
+}
+
+.tab-panel {
+  display: none;
+  width: 100%;
+  /* was: max-width: 1000px; */
+  max-width: clamp(880px, 92vw, 1400px);
+  margin: 0 auto;
+}
+.tab-panel.is-active {
+  display: block;
+}
+
+/* ---------- Lab ---------- */
+
+.lab-ui {
+  display: grid;
+  /* each box: never smaller than 360px, prefers ~40vw, caps at 640px */
+  grid-template-columns:
+    minmax(clamp(360px, 30vw, 640px), 1fr)
+    minmax(84px, auto) /* button column */
+    minmax(clamp(360px, 30vw, 640px), 1fr);
+  gap: 1.25rem 2rem;
+  align-items: center;
+}
+.lab-box {
+  min-height: 76vh; /* tall like the sketch */
+  resize: vertical;
+  background: rgba(236, 239, 244, 0.6);
+  border: 1px solid color-mix(in oklab, var(--fg, #000) 5%, transparent);
+
+  /* backdrop-filter: blur(1px); */
+  border-radius: 1rem;
+  padding: 1rem 1rem;
+  line-height: 1.45;
+  font-family: "Iosevka Nerd Font";
+  font-size: 0.9rem;
+  color: var(--fg);
+  outline: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04) inset;
+  width: 100%;
+  min-width: 0; /* allow shrink inside grid */
+  height: clamp(320px, 68vh, 800px);
+  resize: vertical;
+}
+
+.lab-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lab-generate {
+  appearance: none;
+  border: 1px solid color-mix(in oklab, var(--fg, #000) 10%, transparent);
+  background: color-mix(in oklab, var(--bg, #fff) 85%, transparent);
+  color: var(--fg, #111);
+  border-radius: 12px;
+  padding: 0.55rem 0.9rem;
+  font:
+    600 13px/1 ui-sans-serif,
+    system-ui,
+    -apple-system,
+    Segoe UI;
+  cursor: pointer;
+  transition:
+    transform 0.06s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.lab-generate:hover {
+  background: color-mix(in oklab, var(--bg, #fff) 80%, transparent);
+}
+.lab-generate:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+@media (max-width: 980px) {
+  .lab-ui {
+    grid-template-columns: 1fr;
+  }
+  .lab-actions {
+    order: 2;
+  }
+  #ghostty-css {
+    order: 3;
   }
 }

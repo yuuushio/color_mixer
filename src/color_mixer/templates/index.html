@@ -15,7 +15,7 @@
     <div id="chaos" class="hard-bg">
       <div class="filtered-bg">
         <!-- Tabs live inside the shared background -->
-        <div class="swatches-panel">
+        <div class="swatches-view">
           <div class="topnav">
             <div class="tabwrap" role="tablist" aria-selected="true">
               <span class="slider" aria-hidden="true"></span>
@@ -137,12 +137,25 @@
               role="tabpanel"
               aria-labelledby="tab-btn-blank"
             >
-              <div class="blank-wrap">
-                <h2>Lab</h2>
-                <p class="muted">
-                  Your next feature lives here. No reloads; state persists.
-                </p>
-                <!-- Your second UI lives here -->
+              <div class="lab-ui">
+                <textarea
+                  id="ghostty-src"
+                  class="lab-box"
+                  placeholder="Paste Ghostty theme here…"
+                  spellcheck="false"
+                ></textarea>
+
+                <div class="lab-actions">
+                  <button
+                    type="button"
+                    class="lab-generate"
+                    id="ghostty-generate"
+                  >
+                    Generate
+                  </button>
+                </div>
+
+                <textarea id="ghostty-css" class="lab-box" readonly></textarea>
               </div>
             </section>
           </div>
