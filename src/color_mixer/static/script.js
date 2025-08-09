@@ -340,18 +340,29 @@
           : `--ghostty-${k.replace(/[^a-z0-9]+/g, "-")}`;
         out.set(varName, v);
       }
-      palette.forEach((c, i) => c && out.set(`--ansi-${i}`, c));
+      const ANSI_NAMES = ["d", "r", "gr", "y", "b", "m", "c", "w"]; // dark, red, green, yellow, blue, magenta, cyan, white
+      palette.forEach((c, i) => {
+        if (!c) return;
+        const band = i < 8 ? "n" : "b"; // n = normal, b = bright
+        const letter = ANSI_NAMES[i % 8];
+        out.set(`--${band}${letter}`, c); // e.g. --nr, --bb, --bw, etc.
+      });
       return out;
     },
 
     formatRoot(varsMap) {
+      const ANSI_NAMES = ["d", "r", "gr", "y", "b", "m", "c", "w"];
+      const ansiOrder = [
+        ...ANSI_NAMES.map((l) => `--n${l}`), // normal  d r g y b m c w
+        ...ANSI_NAMES.map((l) => `--b${l}`), // bright  d r g y b m c w
+      ];
       const order = [
         "--bg",
         "--fg",
         "--cursor",
         "--selection-bg",
         "--selection-fg",
-        ...Array.from({ length: 16 }, (_, i) => `--ansi-${i}`),
+        ...ansiOrder,
       ];
       const known = [],
         rest = [];
@@ -361,9 +372,9 @@
       rest.sort((a, b) => a[0].localeCompare(b[0]));
 
       return [
-        ":root {",
+        "",
         ...[...known, ...rest].map(([k, v]) => `  ${k}: ${v};`),
-        "}",
+        "",
       ].join("\n");
     },
 
