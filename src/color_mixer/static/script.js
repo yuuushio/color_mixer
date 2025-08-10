@@ -65,6 +65,10 @@
         e.stopPropagation();
         this.toggle();
       });
+      this.root.addEventListener("click", (e) => {
+        if (this.menu.contains(e.target)) return; // ignore clicks inside the menu
+        this.toggle();
+      });
     }
 
     _normalizeItems(items) {
@@ -81,7 +85,10 @@
         btn.className = this.itemClass;
         btn.dataset.value = value;
         btn.textContent = label;
-        btn.addEventListener("click", () => this.set(value));
+        btn.addEventListener("click", (ev) => {
+          ev.stopPropagation(); // NEW
+          this.set(value);
+        });
         this.menu.appendChild(btn);
       });
       this._buttons = $$(`.${this.itemClass}`, this.menu);

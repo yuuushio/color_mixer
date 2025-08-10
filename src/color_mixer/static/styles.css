@@ -254,6 +254,16 @@ h1 {
   width: 100%;
   padding-right: 0.75rem;
 }
+
+.format-outer-cont {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.format-outer-cont:hover {
+  cursor: pointer;
+}
+
 .arrow {
   border: solid var(--fg);
   border-width: 0 2px 2px 0;
@@ -265,6 +275,15 @@ h1 {
   transform: rotate(45deg);
   -webkit-transform: rotate(45deg);
 }
+
+.format-outer-cont .arrow {
+  border: solid var(--fg);
+  border-width: 0 2px 2px 0;
+  display: inline-block;
+  opacity: 50%;
+  margin-right: 0.5rem;
+}
+
 .algo-menu,
 .format-menu {
   position: absolute;
