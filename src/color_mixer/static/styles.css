@@ -801,3 +801,43 @@ button {
   opacity: 1;
   transform: translate(-50%, -145%) scale(1);
 }
+
+.lab-output {
+  overflow: auto;
+  /* tweak these once and they’ll drive both engines */
+  --sb-track: color-mix(in oklab, var(--bg) 85%, white);
+  --sb-thumb: color-mix(in oklab, var(--fg) 30%, transparent);
+  --sb-thumb-hover: color-mix(in oklab, var(--fg) 45%, transparent);
+
+  scrollbar-width: thin;
+  scrollbar-color: var(--sb-thumb) transparent; /* thumb, track */
+}
+
+.lab-output::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+  background: transparent; /* transparent area behind the bar */
+}
+.lab-output::-webkit-scrollbar-track {
+  background: transparent; /* transparent track */
+}
+.lab-output::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--fg) 35%, transparent);
+  border: none; /* no ring/end caps */
+  border-radius: 8px;
+}
+.lab-output::-webkit-scrollbar-button {
+  /* remove the end buttons entirely */
+  display: none;
+  width: 0;
+  height: 0;
+}
+.lab-output::-webkit-scrollbar-corner {
+  /* transparent corner on both axes */
+  background: transparent;
+}
+
+.lab-output pre {
+  margin: 0;
+  overflow: visible;
+}
