@@ -520,11 +520,11 @@
       if (base) {
         try {
           const dark = await ShadeGen.fromTo(base, "#000000", 27, "oklab");
-          const light = await ShadeGen.fromTo(base, "#ffffff", 27, "oklab");
+          const light = await ShadeGen.fromTo(base, "#ffffff", 61, "km_sub");
 
           // map indices -> tone names
           const mapDark = { 2: "--bg-500", 4: "--bg-600", 6: "--bg-700" };
-          const mapLight = { 2: "--bg-300", 4: "--bg-200", 6: "--bg-100" };
+          const mapLight = { 6: "--bg-300", 9: "--bg-200", 11: "--bg-100" };
 
           Object.entries(mapDark).forEach(
             ([i, name]) => dark[i] && vars.set(name, dark[i]),
