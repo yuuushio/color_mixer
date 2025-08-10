@@ -363,16 +363,23 @@
         ...ANSI_NAMES.map((l) => `--n${l}`), // normal  d r g y b m c w
         ...ANSI_NAMES.map((l) => `--b${l}`), // bright  d r g y b m c w
       ];
+      const xOrder = [
+        "--xbg-100",
+        "--xbg-200",
+        "--xbg-300",
+        "--xbg-500",
+        "--xbg-600",
+        "--xbg-700",
+      ];
       const order = [
         "--bg",
-        "--bg-2",
-        "--bg-4",
-        "--bg-6",
         "--fg",
         "--cursor",
+        "--cursor-text",
         "--selection-bg",
         "--selection-fg",
         ...ansiOrder,
+        ...xOrder,
       ];
       const known = [],
         rest = [];
@@ -512,11 +519,19 @@
       const base = vars.get("--bg") || vars.get("--nd");
       if (base) {
         try {
-          const steps = await ShadeGen.fromTo(base, "#000000", 27, "oklab");
-          // pick indices 2, 4, 6 (0 = input/base)
-          const pick = [2, 4, 6];
-          const names = ["--bg-2", "--bg-4", "--bg-6"];
-          pick.forEach((i, k) => steps[i] && vars.set(names[k], steps[i]));
+          const dark = await ShadeGen.fromTo(base, "#000000", 27, "oklab");
+          const light = await ShadeGen.fromTo(base, "#ffffff", 27, "oklab");
+
+          // map indices -> tone names
+          const mapDark = { 2: "--bg-500", 4: "--bg-600", 6: "--bg-700" };
+          const mapLight = { 2: "--bg-300", 4: "--bg-200", 6: "--bg-100" };
+
+          Object.entries(mapDark).forEach(
+            ([i, name]) => dark[i] && vars.set(name, dark[i]),
+          );
+          Object.entries(mapLight).forEach(
+            ([i, name]) => light[i] && vars.set(name, light[i]),
+          );
         } catch (e) {
           // keep going if mix endpoint not available
         }
