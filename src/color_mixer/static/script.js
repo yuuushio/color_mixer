@@ -370,6 +370,7 @@
         "--xbg-500",
         "--xbg-600",
         "--xbg-700",
+        "--xpink",
       ];
       const order = [
         "--bg",
@@ -517,6 +518,11 @@
 
       // base color: prefer --bg, fallback to normal black (--nd / palette 0)
       const base = vars.get("--bg") || vars.get("--nd");
+
+      const mixAt = async (a, b, { steps = 31, algo = "oklab", t = 0.5 }) => {
+        const arr = await ShadeGen.fromTo(a, b, steps, algo);
+        return arr[Math.round(t * (steps - 1))];
+      };
       if (base) {
         try {
           const dark = await ShadeGen.fromTo(base, "#000000", 27, "oklab");
@@ -532,6 +538,21 @@
           Object.entries(mapLight).forEach(
             ([i, name]) => light[i] && vars.set(name, light[i]),
           );
+          const singles = [
+            {
+              name: "--xpink",
+              a: vars.get("--nr"),
+              b: "#ffffff",
+              steps: 31,
+              algo: "oklab",
+              t: 0.5,
+            },
+          ];
+
+          for (const s of singles) {
+            const hex = await mixAt(s.a, s.b, s);
+            vars.set(s.name, hex);
+          }
         } catch (e) {
           // keep going if mix endpoint not available
         }
