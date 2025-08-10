@@ -52,6 +52,8 @@ body {
   width: 100%;
   height: 100%;
   inset: 0;
+
+  padding-bottom: 2rem;
 }
 
 h1 {
@@ -475,6 +477,7 @@ input[type="number"] {
   gap: 1rem;
   /* max-width: 800px;  */
   justify-content: center;
+  margin-bottom: 3rem;
 }
 
 /* Optional: make the tab buttons’ footprint stable */
@@ -840,4 +843,8 @@ button {
 .lab-output pre {
   margin: 0;
   overflow: visible;
+}
+.filtered-bg {
+  overflow-y: auto;
+  scrollbar-gutter: stable both-edges;
 }
