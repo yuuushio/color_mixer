@@ -365,6 +365,9 @@
       ];
       const order = [
         "--bg",
+        "--bg-2",
+        "--bg-4",
+        "--bg-6",
         "--fg",
         "--cursor",
         "--selection-bg",
@@ -445,6 +448,20 @@
     }, 900);
   }
 
+  const ShadeGen = {
+    async fromTo(aHex, bHex = "#000000", n = 27, algo = "oklab") {
+      const params = new URLSearchParams({
+        algo,
+        a: aHex.replace(/^#/, ""),
+        b: bHex.replace(/^#/, ""),
+        n: String(n),
+      });
+      const resp = await fetch(`/mix?${params}`);
+      if (!resp.ok) throw new Error("mix failed");
+      return resp.json(); // => array of hex strings
+    },
+  };
+
   class GhosttyUI {
     constructor() {
       this.src = document.querySelector("#ghostty-src");
@@ -479,7 +496,7 @@
             !this.out.textContent.trim() &&
             this.src?.value.trim()
           ) {
-            this.generate();
+            await this.generate();
           }
           const txt = this.out ? Ghostty.collectText(this.out).trim() : "";
           if (!txt) return flash(this.copy, "Nothing to copy");
@@ -488,8 +505,23 @@
       }
     }
 
-    generate() {
+    async generate() {
       const vars = Ghostty.toVars(this.src?.value || "");
+
+      // base color: prefer --bg, fallback to normal black (--nd / palette 0)
+      const base = vars.get("--bg") || vars.get("--nd");
+      if (base) {
+        try {
+          const steps = await ShadeGen.fromTo(base, "#000000", 27, "oklab");
+          // pick indices 2, 4, 6 (0 = input/base)
+          const pick = [2, 4, 6];
+          const names = ["--bg-2", "--bg-4", "--bg-6"];
+          pick.forEach((i, k) => steps[i] && vars.set(names[k], steps[i]));
+        } catch (e) {
+          // keep going if mix endpoint not available
+        }
+      }
+
       const text = Ghostty.formatRoot(vars);
       if (this.out) Ghostty.renderOutput(this.out, text);
       sessionStorage.setItem(this.K_OUT, text);
@@ -500,14 +532,14 @@
   function initMixerWithDropdown() {
     const dropdown = new Dropdown("#algo-dropdown", {
       items: {
+        oklab: "Oklab",
         srgb: "sRGB γ-encoded",
         linear: "Linear-light sRGB",
-        oklab: "Oklab",
         okhsv: "OkHSV",
         cam16ucs: "CAM16-UCS",
         km_sub: "Kubelka–Munk",
       },
-      value: "srgb",
+      value: "oklab",
       itemClass: "algo-item",
     });
     const form = $("#mixform");
