@@ -42,6 +42,7 @@ class MixerEngine:
         "oklab": ("oklab", {}),
         "okhsv": ("okhsv", {"hue": "shorter"}),  # shortest-arc hue
         "cam16ucs": ("cam16-ucs", {}),
+        "cam16ucs": ("cam16-ucs", {}),
     }
 
     def __init__(self) -> None:

@@ -7,6 +7,7 @@
   --primary-light: #8fbcbb;
   --border: #d1d9e6;
   --input-bg: #ffffff;
+  --primary-font: "FiraCode Nerd Font";
 }
 *,
 *::before,
@@ -122,7 +123,7 @@ h1 {
   border-radius: 0.4rem;
   background: rgba(216, 222, 233, 0.5);
   letter-spacing: 0.05rem;
-  font-family: "Iosevka Nerd Font";
+  font-family: var(--primary-font);
   border: 1px solid transparent;
 
   opacity: 80%;
@@ -191,7 +192,7 @@ h1 {
 .hex,
 .rgb {
   font:
-    0.82rem/1 "Iosevka Nerd Font",
+    0.82rem/1 var(--primary-font),
     monospace;
   padding: 0.14rem 0.25rem;
   border-radius: 0.25rem;
@@ -242,7 +243,7 @@ h1 {
 .format-trigger {
   flex: 1;
   background: transparent;
-  font-family: "Iosevka Nerd Font";
+  font-family: var(--primary-font);
   padding: 0.5rem 0.75rem;
   font-size: 0.9rem;
   border: none;
@@ -330,7 +331,7 @@ h1 {
   transition: background 0.2s;
 
   font-size: 0.9rem;
-  font-family: "Iosevka Nerd Font";
+  font-family: var(--primary-font);
 }
 .algo-item:hover {
   background: rgba(216, 222, 233, 0.5);
@@ -368,7 +369,7 @@ input[type="number"] {
 /* buttons */
 .number-field .step-increment-btn,
 .number-field .step-decrement-btn {
-  font-family: "Iosevka Nerd Font", monospace;
+  font-family: var(--primary-font), monospace;
   position: absolute;
   right: 4px;
   width: 1rem;
@@ -558,7 +559,7 @@ input[type="number"] {
   background: transparent;
   padding: 0.65rem 1.75rem;
   border-radius: 999px;
-  font-family: "Iosevka Nerd Font";
+  font-family: var(--primary-font);
   font-size: 0.9rem;
   letter-spacing: 0.02em;
   color: var(--fg, #171717);
@@ -626,7 +627,7 @@ button {
   border-radius: 1rem;
   padding: 1rem 1rem;
   line-height: 1.45;
-  font-family: "Iosevka Nerd Font";
+  font-family: var(--primary-font);
   font-size: 0.9rem;
   color: var(--fg);
   outline: none;
@@ -651,7 +652,7 @@ button {
   color: var(--fg, #111);
   border-radius: 12px;
   padding: 0.55rem 0.9rem;
-  font-family: "Iosevka Nerd Font";
+  font-family: var(--primary-font);
   font-size: 0.85rem;
   cursor: pointer;
   transition:
@@ -714,7 +715,7 @@ button {
   margin: 0;
   padding: 1rem;
   white-space: normal;
-  font-family: "Iosevka Nerd Font", ui-monospace, monospace;
+  font-family: var(--primary-font), ui-monospace, monospace;
   font-size: 0.9rem;
   line-height: 1.45;
 }
@@ -787,7 +788,7 @@ button {
   color: #fff;
   padding: 0.28rem 0.48rem;
   border-radius: 0.4rem;
-  font-family: "Iosevka Nerd Font";
+  font-family: var(--primary-font);
   font-size: 0.7rem;
   outline: none;
   white-space: nowrap;

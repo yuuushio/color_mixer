@@ -371,6 +371,14 @@
         "--xbg-600",
         "--xbg-700",
         "--xpink",
+        "--xgray-1",
+        "--xgray-2",
+        "--xgray-3",
+        "--xlg-1",
+        "--xlg-2",
+        "--xlg-3",
+        "--xnordblue-1",
+        "--xnordblue-2",
       ];
       const order = [
         "--bg",
@@ -518,6 +526,8 @@
 
       // base color: prefer --bg, fallback to normal black (--nd / palette 0)
       const base = vars.get("--bg") || vars.get("--nd");
+      const nord_secondary = "#d8dee9"; // nord-fg[0] (the greyest)
+      const nord_white_0 = "#e5e9f0";
 
       const mixAt = async (a, b, { steps = 31, algo = "oklab", t = 0.5 }) => {
         const arr = await ShadeGen.fromTo(a, b, steps, algo);
@@ -525,7 +535,7 @@
       };
       if (base) {
         try {
-          const dark = await ShadeGen.fromTo(base, "#000000", 27, "oklab");
+          const dark = await ShadeGen.fromTo(base, "#000000", 41, "oklab");
           const light = await ShadeGen.fromTo(base, "#ffffff", 61, "km_sub");
 
           // map indices -> tone names
@@ -538,14 +548,78 @@
           Object.entries(mapLight).forEach(
             ([i, name]) => light[i] && vars.set(name, light[i]),
           );
+
+          const blue_gray = await mixAt(vars.get("--bb"), vars.get("--fg"), {
+            steps: 31,
+            algo: "cam16ucs",
+            t: 0.53,
+          });
+          vars.set("--xnordblue-2", blue_gray);
+          const lg1 = await mixAt(vars.get("--nd"), blue_gray, {
+            steps: 21,
+            algo: "okhsv",
+            t: 0.75,
+          });
+          const lg2 = await mixAt(vars.get("--nd"), blue_gray, {
+            steps: 21,
+            algo: "okhsv",
+            t: 0.6,
+          });
+
+          vars.set("--xlg-2", lg1);
+          vars.set("--xlg-3", lg2);
+
           const singles = [
             {
               name: "--xpink",
               a: vars.get("--nr"),
               b: "#ffffff",
-              steps: 31,
+              steps: 61,
               algo: "oklab",
               t: 0.5,
+            },
+            {
+              name: "--xnordblue-1",
+              a: vars.get("--nc"),
+              b: nord_secondary,
+              steps: 41,
+              algo: "km_sub",
+              t: 0.5,
+            },
+
+            {
+              name: "--xgray-1",
+              a: vars.get("--nd"),
+              b: "#ffffff",
+              steps: 41,
+              algo: "okhsv",
+              t: 0.13,
+            },
+
+            {
+              name: "--xgray-2",
+              a: vars.get("--nd"),
+              b: "#ffffff",
+              steps: 41,
+              algo: "okhsv",
+              t: 0.18,
+            },
+            {
+              name: "--xgray-3",
+              a: vars.get("--nd"),
+              b: "#ffffff",
+              steps: 41,
+              algo: "okhsv",
+              t: 0.23,
+            },
+
+            {
+              name: "--xlg-1",
+              a: vars.get("--bd"),
+              b: vars.get("--bw"),
+              steps: 51,
+              algo: "km_sub",
+              t: 0.6,
             },
           ];
 
