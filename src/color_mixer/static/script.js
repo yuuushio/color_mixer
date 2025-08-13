@@ -771,6 +771,7 @@
         oklab: "Oklab",
         okhsl: "OkHSL",
         okhsv: "OkHSV",
+        mix_hct: "HCT-Mix",
         srgb: "sRGB γ-encoded",
         linear: "Linear-light sRGB",
         cam16ucs: "CAM16-UCS",

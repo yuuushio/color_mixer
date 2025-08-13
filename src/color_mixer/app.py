@@ -12,6 +12,7 @@ from flask import Flask, jsonify, render_template, request
 
 # Subtractive mixer (faithful Kubelka–Munk)
 from .kubelka import km_mix
+from .hct_mixer import mix_hct
 
 # Coloraide
 from coloraide import Color as _Base
@@ -47,7 +48,7 @@ class MixerEngine:
 
     def __init__(self) -> None:
         # Keep order stable for clients; include subtractive name.
-        self._supported = tuple(list(self._SPACE_MAP.keys()) + ["km_sub"])
+        self._supported = tuple(list(self._SPACE_MAP.keys()) + ["km_sub", "mix_hct"])
 
     def supported(self) -> tuple[str, ...]:
         return self._supported
@@ -60,6 +61,9 @@ class MixerEngine:
 
         if algo == "km_sub":
             return self._palette_km(hex_a, hex_b, n)
+
+        if algo == "mix_hct":
+            return mix_hct(hex_a, hex_b, n)
 
         if algo not in self._SPACE_MAP:
             raise ValueError(f"unknown algorithm '{algo}'")
