@@ -194,7 +194,7 @@ h1 {
   font:
     0.82rem/1 var(--primary-font),
     monospace;
-  padding: 0.14rem 0.25rem;
+  padding: 0.1rem;
   border-radius: 0.25rem;
   cursor: pointer;
   transition: 0.25s;
