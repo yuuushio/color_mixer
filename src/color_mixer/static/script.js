@@ -1,21 +1,81 @@
 (() => {
   "use strict";
 
-  /* ---------------------------- tiny DOM helpers ---------------------------- */
+  /* =============================== Utilities =============================== */
+
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
-  // normalize all inputs once (your original flags)
-  $$("input").forEach((el) => {
-    el.setAttribute("autocomplete", "off");
-    el.setAttribute("spellcheck", "false");
-    el.setAttribute("autocorrect", "off");
-    el.setAttribute("autocapitalize", "off");
-  });
+  // Canonicalize to "#rrggbb"; accept "#rgb" or "#rrggbb". Throw on invalid.
+  function canonHex(input) {
+    if (!input) throw new Error("empty color");
+    let s = String(input).trim().toLowerCase();
+    if (s[0] !== "#") s = "#" + s;
+    const raw = s.slice(1);
+    if (/^[0-9a-f]{3}$/.test(raw)) {
+      const r = raw
+        .split("")
+        .map((c) => c + c)
+        .join("");
+      return "#" + r;
+    }
+    if (/^[0-9a-f]{6}$/.test(raw)) return s.slice(0, 7);
+    throw new Error(`invalid hex: "${input}"`);
+  }
 
-  /* -------------------------------- Dropdown ------------------------------- */
-  // Reusable, zero-dependency. Expects: root contains a trigger and a menu.
-  // Works with either IDs or classes you already use.
+  // Build a radial "chaos" background from three swatches
+  function setChaosBackground(node, palette) {
+    if (!node || !palette?.length) return;
+    const first = palette[0];
+    const last = palette[palette.length - 1];
+    const mid = palette[Math.floor((palette.length - 1) / 2)];
+    node.style.backgroundImage = `radial-gradient(circle, ${last} 0%, ${mid} 50%, ${first} 100%)`;
+  }
+
+  // Safe JSON parse from fetch Response; fallbacks to plain text if needed
+  async function parseJSON(resp) {
+    try {
+      return await resp.json();
+    } catch {
+      try {
+        const txt = await resp.text();
+        return { error: txt || `HTTP ${resp.status}` };
+      } catch {
+        return { error: `HTTP ${resp.status}` };
+      }
+    }
+  }
+
+  /* ================================ LRU Cache ============================== */
+
+  class LRU {
+    constructor(limit = 32) {
+      this.limit = limit;
+      this.map = new Map();
+    }
+    _touch(k, v) {
+      if (this.map.has(k)) this.map.delete(k);
+      this.map.set(k, v);
+      if (this.map.size > this.limit) {
+        const firstKey = this.map.keys().next().value;
+        this.map.delete(firstKey);
+      }
+    }
+    get(k) {
+      if (!this.map.has(k)) return undefined;
+      const v = this.map.get(k);
+      this._touch(k, v);
+      return v;
+    }
+    set(k, v) {
+      this._touch(k, v);
+      return v;
+    }
+  }
+
+  /* ================================ Dropdown ============================== */
+
+  // Minimal, accessible dropdown: click-to-open, esc-to-close, arrow-key travel.
   class Dropdown {
     /**
      * @param {string|Element} root
@@ -48,60 +108,85 @@
 
       this.trigger = $(triggerSel, this.root);
       this.menu = $(menuSel, this.root);
-
-      this._items = this._normalizeItems(items);
-      this._value = null;
-
       if (!this.trigger || !this.menu) return;
+
+      this._items = Array.isArray(items)
+        ? items.map(({ value, label }) => ({ value, label }))
+        : Object.entries(items).map(([value, label]) => ({ value, label }));
+
+      this._value = null;
 
       this._buildMenu();
       this.set(value ?? this._items[0]?.value ?? null, { silent: true });
 
-      // open/close
       this._onDocClick = (e) => {
         if (!this.root.contains(e.target)) this.close();
       };
+      this._onDocKey = (e) => {
+        if (e.key === "Escape") return void this.close();
+        if (!this.root.classList.contains(this.openClass)) return;
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          e.preventDefault();
+          const btns = this._buttons || [];
+          if (!btns.length) return;
+          const activeIdx = btns.findIndex((b) =>
+            b.classList.contains("active"),
+          );
+          const i = activeIdx < 0 ? 0 : activeIdx;
+          const j =
+            e.key === "ArrowDown"
+              ? (i + 1) % btns.length
+              : (i - 1 + btns.length) % btns.length;
+          btns[j].focus();
+        }
+        if (e.key === "Enter" && document.activeElement?.dataset?.value) {
+          e.preventDefault();
+          this.set(document.activeElement.dataset.value);
+        }
+      };
+
+      // open/close strictly via trigger; no root-level toggling to avoid surprises
       this.trigger.addEventListener("click", (e) => {
         e.stopPropagation();
         this.toggle();
       });
-      this.root.addEventListener("click", (e) => {
-        if (this.menu.contains(e.target)) return; // ignore clicks inside the menu
-        this.toggle();
-      });
-    }
-
-    _normalizeItems(items) {
-      if (Array.isArray(items))
-        return items.map(({ value, label }) => ({ value, label }));
-      return Object.entries(items).map(([value, label]) => ({ value, label }));
+      this.trigger.setAttribute("aria-haspopup", "listbox");
+      this.trigger.setAttribute("aria-expanded", "false");
     }
 
     _buildMenu() {
       this.menu.innerHTML = "";
-      this._items.forEach(({ value, label }) => {
+      this.menu.setAttribute("role", "listbox");
+      for (const { value, label } of this._items) {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = this.itemClass;
         btn.dataset.value = value;
+        btn.setAttribute("role", "option");
         btn.textContent = label;
         btn.addEventListener("click", (ev) => {
-          ev.stopPropagation(); // NEW
+          ev.stopPropagation();
           this.set(value);
         });
         this.menu.appendChild(btn);
-      });
+      }
       this._buttons = $$(`.${this.itemClass}`, this.menu);
     }
 
     open() {
       this.root.classList.add(this.openClass);
+      this.trigger.setAttribute("aria-expanded", "true");
       document.addEventListener("click", this._onDocClick);
+      document.addEventListener("keydown", this._onDocKey);
     }
+
     close() {
       this.root.classList.remove(this.openClass);
+      this.trigger.setAttribute("aria-expanded", "false");
       document.removeEventListener("click", this._onDocClick);
+      document.removeEventListener("keydown", this._onDocKey);
     }
+
     toggle() {
       this.root.classList.contains(this.openClass) ? this.close() : this.open();
     }
@@ -109,8 +194,7 @@
     set(value, { silent = false } = {}) {
       if (value == null || value === this._value) return;
       this._value = value;
-      if (this.trigger)
-        this.trigger.textContent = this._labelFor(value) ?? String(value);
+      this.trigger.textContent = this._labelFor(value) ?? String(value);
       if (this._buttons) {
         this._buttons.forEach((b) => {
           const is = b.dataset.value === value;
@@ -126,24 +210,30 @@
         if (this.onSelect) this.onSelect(value);
       }
     }
+
     get value() {
       return this._value;
     }
+
     _labelFor(v) {
       return this._items.find((i) => i.value === v)?.label ?? null;
     }
   }
 
-  /* ------------------------------- NumberField ------------------------------ */
+  /* ============================== NumberField ============================== */
+
   class NumberField {
-    constructor(rootSel = ".number-field") {
+    constructor(rootSel = ".number-field", { forceMin, forceMax } = {}) {
       this.root = $(rootSel);
       if (!this.root) return;
-
       this.input = this.root.querySelector("input[type=number]");
       this.up = this.root.querySelector(".step-increment-btn");
       this.down = this.root.querySelector(".step-decrement-btn");
       if (!this.input || !this.up || !this.down) return;
+
+      // Optionally override bounds (keep UI and backend in sync)
+      if (typeof forceMin === "number") this.input.min = String(forceMin);
+      if (typeof forceMax === "number") this.input.max = String(forceMax);
 
       this.up.addEventListener("click", () => this.step(+1));
       this.down.addEventListener("click", () => this.step(-1));
@@ -159,9 +249,9 @@
       try {
         dir > 0 ? this.input.stepUp() : this.input.stepDown();
       } catch {
-        this.input.value = this._clamp(
-          (+this.input.value || 0) + dir * (+this.input.step || 1),
-        );
+        const step = +this.input.step || 1;
+        const next = this._clamp((+this.input.value || 0) + dir * step);
+        this.input.value = String(next);
       }
       this.input.dispatchEvent(new Event("input", { bubbles: true }));
       this.input.dispatchEvent(new Event("change", { bubbles: true }));
@@ -176,7 +266,8 @@
     }
   }
 
-  /* ---------------------------------- Tabs --------------------------------- */
+  /* =================================== Tabs ================================= */
+
   class Tabs {
     /**
      * @param {{btn:string,panel:string}[]} config
@@ -186,23 +277,23 @@
       this.config = config;
       this.key = opts.storageKey ?? "activeTab";
       this.indicator = opts.indicator ? $(opts.indicator) : null;
-
       if (!config?.length) return;
 
       const saved =
         sessionStorage.getItem(this.key) || config[0].panel.replace("#", "");
       this.activate(saved, { immediate: true });
 
-      config.forEach(({ btn }) => {
+      for (const { btn } of config) {
         const el = $(btn);
-        if (!el) return;
+        if (!el) continue;
         el.addEventListener("click", (e) => {
           e.preventDefault();
-          this.activate(e.currentTarget.id.replace("tab-btn", "tab"));
+          const id = e.currentTarget.id.replace("tab-btn", "tab");
+          this.activate(id);
         });
-      });
+      }
 
-      // align indicator on first paint & resize
+      // Align indicator on first paint & resize
       requestAnimationFrame(() => this._moveIndicatorTo($(".tab.is-active")));
       let rAF;
       window.addEventListener("resize", () => {
@@ -217,8 +308,9 @@
       const id = panelId.replace(/^#/, "");
       this.config.forEach(({ btn, panel }) => {
         const isActive = panel === `#${id}`;
-        $(btn)?.classList.toggle("is-active", isActive);
-        $(btn)?.setAttribute("aria-selected", String(isActive));
+        const b = $(btn);
+        b?.classList.toggle("is-active", isActive);
+        b?.setAttribute("aria-selected", String(isActive));
         const p = $(panel);
         if (p) {
           p.classList.toggle("is-active", isActive);
@@ -228,7 +320,7 @@
           if (this.indicator && immediate)
             this.indicator.style.transition = "none";
           requestAnimationFrame(() => {
-            this._moveIndicatorTo($(btn));
+            this._moveIndicatorTo(b);
             if (this.indicator && immediate) {
               requestAnimationFrame(() => {
                 this.indicator.style.transition = "";
@@ -250,7 +342,8 @@
     }
   }
 
-  /* ----------------------------- Ghostty helpers ---------------------------- */
+  /* ============================== Ghostty helpers =========================== */
+
   const Ghostty = {
     toVars(text) {
       const kv = {};
@@ -260,6 +353,8 @@
       const normColor = (token) => {
         if (!token) return null;
         let t = token.trim();
+
+        // rgba()/rgb()
         const rgb = t.match(
           /^rgba?\s*\(\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})/i,
         );
@@ -271,6 +366,7 @@
             b = clamp(+rgb[3]);
           return `#${hex2(r)}${hex2(g)}${hex2(b)}`;
         }
+
         const hex = t.match(/^(0x[0-9a-f]{6}|#[0-9a-f]{3,8})$/i);
         if (hex) {
           let h = hex[1].toLowerCase();
@@ -347,12 +443,12 @@
           : `--ghostty-${k.replace(/[^a-z0-9]+/g, "-")}`;
         out.set(varName, v);
       }
-      const ANSI_NAMES = ["d", "r", "gr", "y", "b", "m", "c", "w"]; // dark, red, green, yellow, blue, magenta, cyan, white
+      const ANSI_NAMES = ["d", "r", "gr", "y", "b", "m", "c", "w"];
       palette.forEach((c, i) => {
         if (!c) return;
-        const band = i < 8 ? "n" : "b"; // n = normal, b = bright
+        const band = i < 8 ? "n" : "b";
         const letter = ANSI_NAMES[i % 8];
-        out.set(`--${band}${letter}`, c); // e.g. --nr, --bb, --bw, etc.
+        out.set(`--${band}${letter}`, c);
       });
       return out;
     },
@@ -360,8 +456,8 @@
     formatRoot(varsMap) {
       const ANSI_NAMES = ["d", "r", "gr", "y", "b", "m", "c", "w"];
       const ansiOrder = [
-        ...ANSI_NAMES.map((l) => `--n${l}`), // normal  d r g y b m c w
-        ...ANSI_NAMES.map((l) => `--b${l}`), // bright  d r g y b m c w
+        ...ANSI_NAMES.map((l) => `--n${l}`),
+        ...ANSI_NAMES.map((l) => `--b${l}`),
       ];
       const xOrder = [
         "--xbg-100",
@@ -419,6 +515,7 @@
         if (m) {
           span.classList.add("has-swatch");
           span.style.setProperty("--sw", m[2]);
+          span.style.pointerEvents = "none"; // avoid accidental interactions
         }
         code.appendChild(span);
       });
@@ -432,13 +529,14 @@
     },
   };
 
+  /* ================================== Copy ================================= */
+
   async function copyText(txt, btn) {
     try {
       await navigator.clipboard.writeText(txt);
       flash(btn, "Copied!");
       return true;
     } catch {
-      // fallback path for non-secure contexts / older browsers
       const ta = document.createElement("textarea");
       ta.value = txt;
       ta.style.position = "fixed";
@@ -464,26 +562,54 @@
     }, 900);
   }
 
-  const ShadeGen = {
-    async fromTo(aHex, bHex = "#000000", n = 27, algo = "oklab") {
-      const params = new URLSearchParams({
-        algo,
-        a: aHex.replace(/^#/, ""),
-        b: bHex.replace(/^#/, ""),
-        n: String(n),
-      });
-      const resp = await fetch(`/mix?${params}`);
-      if (!resp.ok) throw new Error("mix failed");
-      return resp.json(); // => array of hex strings
-    },
-  };
+  /* ================================= Mixer API ============================== */
+
+  const ShadeGen = (() => {
+    const cache = new LRU(32);
+
+    function key(aHex, bHex, n, algo) {
+      return `${aHex}|${bHex}|${algo}|${n}`;
+    }
+
+    return {
+      /**
+       * Fetch palette between a and b, using algo and n steps. Uses LRU cache.
+       * Returns Promise<string[]>
+       */
+      async fromTo(aHex, bHex = "#000000", n = 27, algo = "oklab") {
+        const A = canonHex(aHex);
+        const B = canonHex(bHex);
+        const steps = Math.max(2, Math.min(512, n | 0));
+        const k = key(A, B, steps, algo);
+        const hit = cache.get(k);
+        if (hit) return hit;
+
+        const params = new URLSearchParams({
+          algo,
+          a: A.slice(1),
+          b: B.slice(1),
+          n: String(steps),
+        });
+        const resp = await fetch(`/mix?${params}`);
+        if (!resp.ok) {
+          const j = await parseJSON(resp);
+          throw new Error(j?.error || `mix failed (${resp.status})`);
+        }
+        const arr = await resp.json();
+        cache.set(k, arr);
+        return arr;
+      },
+    };
+  })();
+
+  /* ================================ Ghostty UI ============================== */
 
   class GhosttyUI {
     constructor() {
-      this.src = document.querySelector("#ghostty-src");
-      this.out = document.querySelector("#ghostty-css");
-      this.btn = document.querySelector("#ghostty-generate");
-      this.copy = document.querySelector("#lab-copy");
+      this.src = $("#ghostty-src");
+      this.out = $("#ghostty-css");
+      this.btn = $("#ghostty-generate");
+      this.copy = $("#lab-copy");
 
       this.K_IN = "ghostty:src";
       this.K_OUT = "ghostty:css:text";
@@ -501,12 +627,11 @@
         if (sOut) Ghostty.renderOutput(this.out, sOut);
       }
 
-      // wire buttons (individually; no early bail)
+      // wire buttons
       if (this.btn) this.btn.addEventListener("click", () => this.generate());
 
       if (this.copy) {
         this.copy.addEventListener("click", async () => {
-          // If nothing rendered yet but we have input, generate now.
           if (
             this.out &&
             !this.out.textContent.trim() &&
@@ -524,111 +649,110 @@
     async generate() {
       const vars = Ghostty.toVars(this.src?.value || "");
 
-      // base color: prefer --bg, fallback to normal black (--nd / palette 0)
       const base = vars.get("--bg") || vars.get("--nd");
-      const nord_secondary = "#d8dee9"; // nord-fg[0] (the greyest)
-      const nord_white_0 = "#e5e9f0";
-
-      const mixAt = async (a, b, { steps = 31, algo = "oklab", t = 0.5 }) => {
-        const arr = await ShadeGen.fromTo(a, b, steps, algo);
-        return arr[Math.round(t * (steps - 1))];
-      };
       if (base) {
+        // Prepare tasks in parallel. Helper to pick t from a palette.
+        const pick = (arr, t) => arr[Math.round(t * (arr.length - 1))];
+
+        const tasks = [];
+
+        // Dark and light ramps
+        const pDark = ShadeGen.fromTo(base, "#000000", 41, "oklab");
+        const pLight = ShadeGen.fromTo(base, "#ffffff", 61, "km_sub");
+        tasks.push(pDark, pLight);
+
+        // Blue-gray derivative
+        const bb = vars.get("--bb"),
+          fg = vars.get("--fg");
+        const pBlueGray =
+          bb && fg
+            ? ShadeGen.fromTo(bb, fg, 31, "cam16ucs").then((a) => pick(a, 0.53))
+            : Promise.resolve(null);
+        tasks.push(pBlueGray);
+
+        // Light grays
+        const nd = vars.get("--nd");
+        const pLg1 =
+          nd && fg
+            ? ShadeGen.fromTo(nd, fg, 21, "okhsv").then((a) => pick(a, 0.75))
+            : Promise.resolve(null);
+        const pLg2 =
+          nd && fg
+            ? ShadeGen.fromTo(nd, fg, 21, "okhsv").then((a) => pick(a, 0.6))
+            : Promise.resolve(null);
+        tasks.push(pLg1, pLg2);
+
+        // Singles
+        const singles = [
+          vars.get("--nr")
+            ? ShadeGen.fromTo(vars.get("--nr"), "#ffffff", 61, "oklab").then(
+                (a) => pick(a, 0.5),
+              )
+            : null,
+          vars.get("--nc")
+            ? ShadeGen.fromTo(vars.get("--nc"), "#d8dee9", 41, "km_sub").then(
+                (a) => pick(a, 0.5),
+              )
+            : null,
+          nd
+            ? ShadeGen.fromTo(nd, "#ffffff", 41, "okhsv").then((a) =>
+                pick(a, 0.13),
+              )
+            : null,
+          nd
+            ? ShadeGen.fromTo(nd, "#ffffff", 41, "okhsv").then((a) =>
+                pick(a, 0.18),
+              )
+            : null,
+          nd
+            ? ShadeGen.fromTo(nd, "#ffffff", 41, "okhsv").then((a) =>
+                pick(a, 0.23),
+              )
+            : null,
+          vars.get("--bd") && vars.get("--bw")
+            ? ShadeGen.fromTo(
+                vars.get("--bd"),
+                vars.get("--bw"),
+                51,
+                "km_sub",
+              ).then((a) => pick(a, 0.6))
+            : null,
+        ].map((p) => p ?? Promise.resolve(null));
+
         try {
-          const dark = await ShadeGen.fromTo(base, "#000000", 41, "oklab");
-          const light = await ShadeGen.fromTo(base, "#ffffff", 61, "km_sub");
+          const [dark, light, blue_gray, lg1, lg2, ...singleVals] =
+            await Promise.all([...tasks, ...singles]);
 
-          // map indices -> tone names
-          const mapDark = { 2: "--bg-500", 4: "--bg-600", 6: "--bg-700" };
-          const mapLight = { 6: "--bg-300", 9: "--bg-200", 11: "--bg-100" };
-
-          Object.entries(mapDark).forEach(
-            ([i, name]) => dark[i] && vars.set(name, dark[i]),
-          );
-          Object.entries(mapLight).forEach(
-            ([i, name]) => light[i] && vars.set(name, light[i]),
-          );
-
-          const blue_gray = await mixAt(vars.get("--bb"), vars.get("--fg"), {
-            steps: 31,
-            algo: "cam16ucs",
-            t: 0.53,
-          });
-          vars.set("--xnordblue-2", blue_gray);
-          const lg1 = await mixAt(vars.get("--nd"), blue_gray, {
-            steps: 21,
-            algo: "okhsv",
-            t: 0.75,
-          });
-          const lg2 = await mixAt(vars.get("--nd"), blue_gray, {
-            steps: 21,
-            algo: "okhsv",
-            t: 0.6,
-          });
-
-          vars.set("--xlg-2", lg1);
-          vars.set("--xlg-3", lg2);
-
-          const singles = [
-            {
-              name: "--xpink",
-              a: vars.get("--nr"),
-              b: "#ffffff",
-              steps: 61,
-              algo: "oklab",
-              t: 0.5,
-            },
-            {
-              name: "--xnordblue-1",
-              a: vars.get("--nc"),
-              b: nord_secondary,
-              steps: 41,
-              algo: "km_sub",
-              t: 0.5,
-            },
-
-            {
-              name: "--xgray-1",
-              a: vars.get("--nd"),
-              b: "#ffffff",
-              steps: 41,
-              algo: "okhsv",
-              t: 0.13,
-            },
-
-            {
-              name: "--xgray-2",
-              a: vars.get("--nd"),
-              b: "#ffffff",
-              steps: 41,
-              algo: "okhsv",
-              t: 0.18,
-            },
-            {
-              name: "--xgray-3",
-              a: vars.get("--nd"),
-              b: "#ffffff",
-              steps: 41,
-              algo: "okhsv",
-              t: 0.23,
-            },
-
-            {
-              name: "--xlg-1",
-              a: vars.get("--bd"),
-              b: vars.get("--bw"),
-              steps: 51,
-              algo: "km_sub",
-              t: 0.6,
-            },
-          ];
-
-          for (const s of singles) {
-            const hex = await mixAt(s.a, s.b, s);
-            vars.set(s.name, hex);
+          if (Array.isArray(dark)) {
+            const mapDark = { 2: "--bg-500", 4: "--bg-600", 6: "--bg-700" };
+            Object.entries(mapDark).forEach(
+              ([i, name]) => dark[i] && vars.set(name, dark[i]),
+            );
           }
-        } catch (e) {
-          // keep going if mix endpoint not available
+          if (Array.isArray(light)) {
+            const mapLight = { 6: "--bg-300", 9: "--bg-200", 11: "--bg-100" };
+            Object.entries(mapLight).forEach(
+              ([i, name]) => light[i] && vars.set(name, light[i]),
+            );
+          }
+          if (blue_gray) vars.set("--xnordblue-2", blue_gray);
+          if (lg1) vars.set("--xlg-2", lg1);
+          if (lg2) vars.set("--xlg-3", lg2);
+
+          const names = [
+            "--xpink",
+            "--xnordblue-1",
+            "--xgray-1",
+            "--xgray-2",
+            "--xgray-3",
+            "--xlg-1",
+          ];
+          names.forEach((name, i) => {
+            const v = singleVals[i];
+            if (v) vars.set(name, v);
+          });
+        } catch {
+          // tolerate API failures; continue with what we have
         }
       }
 
@@ -638,48 +762,76 @@
     }
   }
 
-  /* --------------------------------- Mixer --------------------------------- */
+  /* ================================== Mixer UI ============================= */
+
   function initMixerWithDropdown() {
+    // Algorithm menu must mirror backend support.
     const dropdown = new Dropdown("#algo-dropdown", {
       items: {
         oklab: "Oklab",
+        okhsl: "OkHSL",
+        okhsv: "OkHSV",
         srgb: "sRGB γ-encoded",
         linear: "Linear-light sRGB",
-        okhsv: "OkHSV",
         cam16ucs: "CAM16-UCS",
+        cam16jmh: "CAM16-JMh",
         km_sub: "Kubelka–Munk",
       },
       value: "oklab",
       itemClass: "algo-item",
     });
+
     const form = $("#mixform");
     if (!form) return;
 
+    // Make the "Steps" input reflect backend bounds even if HTML lags behind.
+    const stepsInput = $("#steps");
+    if (stepsInput) {
+      stepsInput.min = "2";
+      stepsInput.max = "512";
+    }
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const a = $("#colA").value.replace(/^#/, "");
-      const b = $("#colB").value.replace(/^#/, "");
-      const n = +$("#steps").value;
 
-      const resp = await fetch(
-        `/mix?${new URLSearchParams({
-          algo: dropdown.value,
-          a,
-          b,
-          n,
-        })}`,
-      );
+      let a, b, n;
+      try {
+        a = canonHex($("#colA").value);
+        b = canonHex($("#colB").value);
+      } catch (err) {
+        alert(err.message || "Invalid colour");
+        return;
+      }
+      n = Math.max(2, Math.min(512, +$("#steps").value || 27));
+
+      const params = new URLSearchParams({
+        algo: dropdown.value,
+        a: a.slice(1),
+        b: b.slice(1),
+        n: String(n),
+      });
+
+      const resp = await fetch(`/mix?${params}`);
+      if (!resp.ok) {
+        const j = await parseJSON(resp);
+        alert(j?.error || `mix failed (${resp.status})`);
+        return;
+      }
       const data = await resp.json();
 
+      // Paint swatches with minimal layout churn
       const container = $("#swatches");
-      container.innerHTML = "";
-      data.forEach((hex) => {
-        const rgbVals = hex
+      const frag = document.createDocumentFragment();
+
+      for (const hex of data) {
+        const [r, g, b] = hex
           .slice(1)
           .match(/../g)
           .map((h) => parseInt(h, 16));
+
         const sw = document.createElement("div");
         sw.className = "swatch";
+
         const chip = document.createElement("div");
         chip.className = "color";
         chip.style.background = hex;
@@ -695,65 +847,74 @@
         wrapRgb.className = "value-wrapper";
         const rgbEl = document.createElement("span");
         rgbEl.className = "rgb";
-        rgbEl.textContent = `(${rgbVals.join(",")})`;
+        rgbEl.textContent = `(${r},${g},${b})`;
         wrapRgb.appendChild(rgbEl);
 
-        [hexEl, rgbEl].forEach((el) => {
+        const bindCopy = (el, formatter) => {
           el.addEventListener("click", async (ev) => {
             ev.stopPropagation();
-            const txt = el === hexEl ? hex : `rgb${el.textContent}`;
-            await navigator.clipboard.writeText(txt);
-
+            const txt = formatter();
+            try {
+              await navigator.clipboard.writeText(txt);
+            } catch {
+              // fallback
+              await copyText(txt, null);
+            }
             const wrapper = el.parentNode;
             const tick = document.createElement("span");
             tick.className = "tick";
             tick.textContent = "✓";
+            tick.style.pointerEvents = "none"; // prevent accidental interactions
             wrapper.appendChild(tick);
+            // fade out via CSS transition; remove after
             setTimeout(() => tick.classList.add("fade"), 1000);
-            tick.addEventListener("transitionend", () => tick.remove());
+            tick.addEventListener("transitionend", () => tick.remove(), {
+              once: true,
+            });
           });
-        });
+        };
+
+        bindCopy(hexEl, () => hex);
+        bindCopy(rgbEl, () => `rgb(${r}, ${g}, ${b})`);
 
         sw.append(chip, wrapHex, wrapRgb);
-        container.append(sw);
-      });
-
-      // chaos bg
-      const target = $("#chaos");
-      if (target && data.length) {
-        const first = data[0],
-          last = data[data.length - 1],
-          mid = data[Math.floor((data.length - 1) / 2)];
-        target.style.backgroundImage = `radial-gradient(circle, ${last} 0%, ${mid} 50%, ${first} 100%)`;
+        frag.append(sw);
       }
+
+      container.replaceChildren(frag);
+
+      // Update the background
+      setChaosBackground($("#chaos"), data);
     });
 
-    // auto-mix on load (optional)
+    // auto-mix on load
     setTimeout(() => form.dispatchEvent(new Event("submit")), 100);
   }
 
-  /* --------------------------------- boot ---------------------------------- */
+  /* ================================== boot ================================= */
+
   document.addEventListener("DOMContentLoaded", () => {
-    new NumberField(".number-field");
+    new NumberField(".number-field", { forceMin: 2, forceMax: 512 });
     new GhosttyUI();
 
+    // Persist format choice for Lab tab
     const savedFmt = sessionStorage.getItem("lab:format") || "css";
     new Dropdown("#format-dropdown", {
       items: { css: "CSS", nvim: "nvim" },
       value: savedFmt,
       itemClass: "algo-item",
       onSelect: (v) => sessionStorage.setItem("lab:format", v),
-      // no triggerSel/menuSel needed if your HTML has data-trigger / data-menu
     });
 
     initMixerWithDropdown();
 
+    // Correct indicator hook: the DOM has .slider, not .tab-indicator
     new Tabs(
       [
         { btn: "#tab-btn-mix", panel: "#tab-mix" },
         { btn: "#tab-btn-blank", panel: "#tab-blank" },
       ],
-      { storageKey: "activeTab", indicator: ".tab-indicator" },
+      { storageKey: "activeTab", indicator: ".slider" },
     );
   });
 })();
