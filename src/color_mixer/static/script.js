@@ -833,7 +833,7 @@
         oklab: "Oklab",
         okhsl: "OkHSL",
         okhsv: "OkHSV",
-        mix_hct: "HCT-Mix",
+        hct: "HCT-Mix",
         hct_tone: "Google's HCT",
         srgb: "sRGB γ-encoded",
         linear: "Linear-light sRGB",

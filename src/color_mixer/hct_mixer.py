@@ -1,4 +1,4 @@
-# hct_mixer.py
+# NOTE: UNUSED: WE USE Color.steps()
 
 from __future__ import annotations
 

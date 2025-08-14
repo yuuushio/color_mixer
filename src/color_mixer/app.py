@@ -1,154 +1,133 @@
-"""Elite Colour Mixer — Flask API (Coloraide-powered, simple & fast)."""
+"""Elite Colour Mixer — Flask API (ColorAide-native, stripped & fast)."""
 
 from __future__ import annotations
 
 import logging
 import string
-from typing import Any, TypeAlias, Callable
+from typing import Any
 
 import numpy as np
-from numpy.typing import NDArray
 from flask import Flask, jsonify, render_template, request
 
-# Subtractive mixer (faithful Kubelka–Munk)
+# Project-local algorithms
 from .kubelka import km_mix
-from .hct_mixer import mix_hct
 from .hct_tone import tonal_ramp
+from .hct_mixer import mix_hct  # keep if you still expose "mix_hct"
 
-# Coloraide
-from coloraide import Color as _Base
-from coloraide.spaces.cam16_ucs import CAM16UCS, CAM16JMh
+# ColorAide
+from coloraide import Color
+from coloraide.spaces.cam16_ucs import CAM16UCS
+from coloraide.spaces.cam16_jmh import CAM16JMh
 from coloraide.spaces.okhsv import Okhsv
 from coloraide.spaces.okhsl import Okhsl
-
-RGB01: TypeAlias = NDArray[np.float32]
-Interpolator: TypeAlias = Callable[[float], RGB01]
-Factory: TypeAlias = Callable[[RGB01, RGB01], Interpolator]
-SpaceSpec: TypeAlias = tuple[str, dict[str, Any]]
+from coloraide.spaces.hct import HCT  # type: ignore[attr-defined]
 
 
 class MixerEngine:
-    """Encapsulate conversions + straightforward palette builders."""
+    """Thin façade over ColorAide. Everything routes through Color.steps()."""
 
-    class Color(_Base):
+    class Color(Color):
         pass
 
     # Register only what we actually use.
-    Color.register([CAM16JMh(), CAM16UCS(), Okhsv(), Okhsl()])
+    Color.register([CAM16UCS(), CAM16JMh(), Okhsv(), Okhsl()])
 
-    # Declarative map for Coloraide-driven algos (no duplicate keys).
-    _SPACE_MAP: dict[str, SpaceSpec] = {
-        "srgb": ("srgb", {}),  # gamma-encoded
-        "linear": ("srgb-linear", {}),  # linear-light
+    # Public algo keys → (ColorAide space id, default kwargs)
+    _SPACE_MAP: dict[str, tuple[str, dict[str, Any]]] = {
+        "srgb": ("srgb", {}),
+        "linear": ("srgb-linear", {}),
         "oklab": ("oklab", {}),
-        "okhsv": ("okhsv", {"hue": "shorter"}),
-        "okhsl": ("okhsl", {"hue": "shorter"}),
+        "okhsv": ("okhsv", {}),
+        "okhsl": ("okhsl", {}),
+        "hct": ("hct", {}),
         "cam16ucs": ("cam16-ucs", {}),
-        "cam16jmh": ("cam16-jmh", {"hue": "shorter"}),  # polar CAM16
+        "cam16jmh": ("cam16-jmh", {}),
     }
 
-    def __init__(self) -> None:
-        # Keep order stable for clients; include subtractive name.
-        self._supported = tuple(
-            list(self._SPACE_MAP.keys()) + ["km_sub", "mix_hct", "hct_tone"]
-        )
+    # Interpolator methods ColorAide accepts
+    _METHODS = {
+        "linear",
+        "css-linear",
+        "continuous",
+        "bspline",
+        "natural",
+        "monotone",
+        "catrom",
+    }
+
+    # Hue arc policies
+    _HUE = {"shorter", "longer", "increasing", "decreasing", "specified"}
 
     def supported(self) -> tuple[str, ...]:
-        return self._supported
+        # Include specials up front
+        return tuple(list(self._SPACE_MAP.keys()) + ["km_sub", "hct_tone"])
 
-    # ----------------------- public API -----------------------
+    # --------------------------- main dispatch ---------------------------
+
     def mix_palette(self, hex_a: str, hex_b: str, algo: str, n: int) -> list[str]:
-        """Build a palette of n colours between A and B using `algo`."""
-        algo = algo.lower()
+        algo = (algo or "srgb").lower()
         n = max(2, min(int(n), 512))
 
+        # Special cases first
         if algo == "km_sub":
             return self._palette_km(hex_a, hex_b, n)
 
-        if algo == "mix_hct":
-            return mix_hct(hex_a, hex_b, n)
-
         if algo == "hct_tone":
-            sched = request.args.get(
-                "schedule", "linear"
-            )  # "ease" | "linear" | "shadow" | "highlight"
+            sched = request.args.get("schedule", "linear").lower()
             if sched not in ("ease", "linear", "shadow", "highlight"):
                 sched = "linear"
             try:
                 gamma = float(request.args.get("gamma", 1.35))
             except (TypeError, ValueError):
                 gamma = 1.35
-
             n = max(3, min(n, 512))
-            # Note: hex_b is ignored for this algo by design
             return tonal_ramp(hex_a, n, schedule=sched, gamma=gamma)
 
+        # Pure ColorAide interpolation for everything else
         if algo not in self._SPACE_MAP:
             raise ValueError(f"unknown algorithm '{algo}'")
 
-        space, kw = self._SPACE_MAP[algo]
-        # Fast-path for true linear-light sRGB: do LERP in NumPy, avoid Coloraide.
-        if space == "srgb-linear" and not kw:
-            a = self._hex_to_rgb01(hex_a)
-            b = self._hex_to_rgb01(hex_b)
-            ts = np.linspace(0.0, 1.0, n, dtype=np.float32)
-            return [self._rgb01_to_hex((1.0 - t) * a + t * b) for t in ts]
+        space, defaults = self._SPACE_MAP[algo]
+        method = (request.args.get("method") or "linear").lower()
+        if method not in self._METHODS:
+            method = "linear"
 
-        return self._palette_coloraide(hex_a, hex_b, n, space=space, **kw)
+        hue = (request.args.get("hue") or defaults.get("hue") or "shorter").lower()
+        if hue not in self._HUE:
+            hue = defaults.get("hue") or "shorter"
 
-    # ----------------------- helpers --------------------------
+        colors = self.Color.steps(
+            [hex_a, hex_b],
+            steps=n,
+            space=space,
+            out_space="srgb",
+            method=method,
+            hue=hue,
+        )
+        return [c.to_string(hex=True, fit={"method": "raytrace"}) for c in colors]
 
-    @staticmethod
-    def _clamp01(x: RGB01) -> RGB01:
-        return np.clip(x, 0.0, 1.0)
-
-    @staticmethod
-    def _canon_hex(s: str) -> str:
-        """Normalise to '#rrggbb'; accept 3- or 6-digit hex only."""
-        raw = s.strip().lstrip("#")
-        if len(raw) == 3 and all(c in string.hexdigits for c in raw):
-            raw = "".join(ch * 2 for ch in raw)
-        if len(raw) != 6 or not all(c in string.hexdigits for c in raw):
-            raise ValueError("hex must be 3 or 6 hex digits")
-        return "#" + raw.lower()
-
-    @staticmethod
-    def _hex_to_rgb01(hex_str: str) -> RGB01:
-        s = hex_str.lstrip("#")
-        r, g, b = (int(s[i : i + 2], 16) / 255.0 for i in (0, 2, 4))
-        return np.array([r, g, b], dtype=np.float32)
-
-    @staticmethod
-    def _rgb01_to_hex(rgb: RGB01) -> str:
-        u8 = np.rint(np.clip(rgb, 0.0, 1.0) * 255.0).astype(np.uint8)
-        return f"#{u8[0]:02x}{u8[1]:02x}{u8[2]:02x}"
-
-    # ------------------- palette builders ---------------------
-
-    def _palette_coloraide(
-        self, hex_a: str, hex_b: str, n: int, *, space: str, **kwargs
-    ) -> list[str]:
-        """Delegate to Coloraide's interpolator in `space` with explicit hue policy."""
-        A = self.Color(hex_a)
-        B = self.Color(hex_b)
-        interp = self.Color.interpolate([A, B], space=space, method="linear", **kwargs)
-        ts = np.linspace(0.0, 1.0, n, dtype=np.float32)
-        out: list[str] = []
-        for t in ts:
-            col = interp(float(t)).convert("srgb")  # gamma-encoded 0..1
-            rgb = np.array(col.coords(), dtype=np.float32)
-            out.append(self._rgb01_to_hex(rgb))
-        return out
+    # --------------------------- subtractive KM ---------------------------
 
     def _palette_km(self, hex_a: str, hex_b: str, n: int) -> list[str]:
-        """Subtractive KM palette using our NumPy path."""
-        a = self._hex_to_rgb01(hex_a)
-        b = self._hex_to_rgb01(hex_b)
-        ts = np.linspace(0.0, 1.0, n, dtype=np.float32)
-        return [self._rgb01_to_hex(self._clamp01(km_mix(a, b, float(t)))) for t in ts]
+        """Faithful KM subtractive mix; parse/format via ColorAide, math via NumPy."""
+        a = np.asarray(self.Color(hex_a).convert("srgb").coords(), dtype=np.float32)
+        b = np.asarray(self.Color(hex_b).convert("srgb").coords(), dtype=np.float32)
+        t = np.linspace(0.0, 1.0, n, dtype=np.float32)
+        out = []
+        for ti in t:
+            rgb = np.clip(km_mix(a, b, float(ti)), 0.0, 1.0)
+            out.append(self.Color("srgb", rgb.tolist()).to_string(hex=True))
+        return out
 
 
-# ---------------------------- Flask app factory -----------------------------
+def _canon_hex(s: str) -> str:
+    """Normalize to '#rrggbb'; accept 3- or 6-digit hex only."""
+    raw = (s or "").strip().lstrip("#")
+    if len(raw) == 3 and all(c in string.hexdigits for c in raw):
+        raw = "".join(ch * 2 for ch in raw)
+    if len(raw) != 6 or not all(c in string.hexdigits for c in raw):
+        raise ValueError("hex must be 3 or 6 hex digits")
+    return "#" + raw.lower()
 
 
 def create_app() -> Flask:
@@ -164,18 +143,18 @@ def create_app() -> Flask:
     @app.route("/mix")
     def mix():
         try:
-            hex_a = engine._canon_hex(request.args.get("a", "ff0000"))
-            hex_b = engine._canon_hex(request.args.get("b", "0000ff"))
+            hex_a = _canon_hex(request.args.get("a", "ff0000"))
+            hex_b = _canon_hex(request.args.get("b", "0000ff"))
         except Exception as e:
             return jsonify({"error": f"invalid color: {e}"}), 400
 
-        algo = request.args.get("algo", "srgb")
+        algo = (request.args.get("algo") or "srgb").lower()
         try:
             n = int(request.args.get("n", 21))
         except ValueError:
             return jsonify({"error": "n must be an integer"}), 400
 
-        if algo.lower() not in engine.supported():
+        if algo not in engine.supported():
             return (
                 jsonify(
                     {
@@ -197,6 +176,12 @@ def create_app() -> Flask:
     return app
 
 
+# ------------------------------ utilities -------------------------------
+
+
+def _to_bool(v: str | None) -> bool:
+    return str(v).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
 if __name__ == "__main__":
-    # Do not enable debug for production; threaded=True is fine for this I/O profile.
     create_app().run(debug=False, threaded=True)
