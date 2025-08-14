@@ -849,3 +849,7 @@ button {
   overflow-y: auto;
   scrollbar-gutter: stable both-edges;
 }
+
+label.interpolation-label {
+  display: none;
+}

@@ -19,7 +19,7 @@ from coloraide.spaces.cam16_ucs import CAM16UCS
 from coloraide.spaces.cam16_jmh import CAM16JMh
 from coloraide.spaces.okhsv import Okhsv
 from coloraide.spaces.okhsl import Okhsl
-from coloraide.spaces.hct import HCT  # type: ignore[attr-defined]
+from coloraide.spaces.hct import HCT
 
 
 class MixerEngine:
