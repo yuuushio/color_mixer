@@ -68,9 +68,6 @@ class MixerEngine:
         if algo == "mix_hct":
             return mix_hct(hex_a, hex_b, n)
 
-        if algo not in self._SPACE_MAP:
-            raise ValueError(f"unknown algorithm '{algo}'")
-
         if algo == "hct_tone":
             sched = request.args.get(
                 "schedule", "linear"
@@ -81,8 +78,13 @@ class MixerEngine:
                 gamma = float(request.args.get("gamma", 1.35))
             except (TypeError, ValueError):
                 gamma = 1.35
+
+            n = max(3, min(n, 512))
             # Note: hex_b is ignored for this algo by design
             return tonal_ramp(hex_a, n, schedule=sched, gamma=gamma)
+
+        if algo not in self._SPACE_MAP:
+            raise ValueError(f"unknown algorithm '{algo}'")
 
         space, kw = self._SPACE_MAP[algo]
         # Fast-path for true linear-light sRGB: do LERP in NumPy, avoid Coloraide.

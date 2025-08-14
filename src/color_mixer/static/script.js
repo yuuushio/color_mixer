@@ -762,69 +762,62 @@
     }
   }
 
+  /* --------------------------- Tone schedule control -------------------------- */
   function ToneScheduleUI() {
-    // Find Colour B label to hide/show
-    const labelB = $("#colB")?.closest("label");
-    if (!labelB) return null;
+    const wrap = document.querySelector("#tone-schedule-wrap");
+    const labelB = document.querySelector("label.col-b");
+    const inputB = document.querySelector("#colB");
+    if (!wrap || !labelB || !inputB) return null;
 
-    // Build a label + dropdown, styled like your algo dropdown (no ID collisions).
-    const wrap = document.createElement("label");
-    wrap.className = "algo-label";
-    wrap.id = "tone-schedule-wrap";
-    wrap.hidden = true; // start hidden
-    wrap.setAttribute("aria-hidden", "true");
-    wrap.innerHTML = `
-    Tone schedule
-    <div class="algo-prefix-container">
-      <span class="algo-outer-cont">
-        <button type="button" class="algo-trigger" data-trigger>Ease</button>
-        <span class="arrow down"></span>
-      </span>
-      <div class="algo-menu" data-menu></div>
-    </div>
-  `;
-
-    // Insert schedule UI right after Colour B
-    labelB.insertAdjacentElement("afterend", wrap);
-
-    // Instantiate Dropdown with data-* selectors (avoids ID clashes).
-    const saved = sessionStorage.getItem("tone:schedule") || "ease";
+    // Instantiate dropdown on existing HTML
+    const saved = sessionStorage.getItem("tone:schedule") || "linear";
     const dd = new Dropdown(wrap.querySelector(".algo-prefix-container"), {
       items: {
-        ease: "Ease",
         linear: "Linear",
+        ease: "Ease",
         shadow: "Shadow",
         highlight: "Highlight",
       },
       value: saved,
       itemClass: "algo-item",
       onSelect: (v) => sessionStorage.setItem("tone:schedule", v),
-      // uses default triggerSel/menuSel which include [data-trigger]/[data-menu]
     });
 
-    // API for toggling
+    // Robust hide/show that beats stylesheet overrides (including !important)
+    const setHidden = (el, on) => {
+      el.hidden = on;
+      el.setAttribute("aria-hidden", on ? "true" : "false");
+      try {
+        el.inert = !!on;
+      } catch {}
+      if (on) {
+        el.style.setProperty("display", "none", "important");
+      } else {
+        el.style.removeProperty("display"); // fall back to stylesheet
+      }
+    };
+
     const show = () => {
-      if (labelB) {
-        labelB.hidden = true;
-        labelB.setAttribute("aria-hidden", "true");
-        $("#colB").disabled = true;
-      }
-      wrap.hidden = false;
-      wrap.setAttribute("aria-hidden", "false");
+      setHidden(labelB, true);
+      inputB.disabled = true;
+      setHidden(wrap, false);
     };
+
     const hide = () => {
-      wrap.hidden = true;
-      wrap.setAttribute("aria-hidden", "true");
-      if (labelB) {
-        labelB.hidden = false;
-        labelB.setAttribute("aria-hidden", "false");
-        $("#colB").disabled = false;
-      }
+      // Ensure the dropdown is closed and listeners removed
+      if (dd && typeof dd.close === "function") dd.close();
+      setHidden(wrap, true);
+      setHidden(labelB, false);
+      inputB.disabled = false;
     };
+
+    // Enforce initial hidden state defined in HTML
+    if (wrap.hasAttribute("hidden"))
+      wrap.style.setProperty("display", "none", "important");
 
     return {
       get value() {
-        return dd?.value || "ease";
+        return dd?.value || "linear";
       },
       show,
       hide,
@@ -856,8 +849,7 @@
 
     const updateAlgoUI = (algoKey) => {
       if (!toneUI) return;
-      if (algoKey === "hct_tone") toneUI.show();
-      else toneUI.hide();
+      algoKey === "hct_tone" ? toneUI.show() : toneUI.hide();
     };
 
     // Initial toggle on load
@@ -898,6 +890,10 @@
         b: b.slice(1),
         n: String(n),
       });
+
+      if (dropdown.value === "hct_tone" && toneUI) {
+        params.set("schedule", toneUI.value); // "ease" | "linear" | "shadow" | "highlight"
+      }
 
       const resp = await fetch(`/mix?${params}`);
       if (!resp.ok) {

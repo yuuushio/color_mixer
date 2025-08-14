@@ -54,7 +54,7 @@
                   </div>
                   <div class="controls">
                     <form id="mixform" autocomplete="off">
-                      <label>
+                      <label class="col-a">
                         Colour A
                         <input
                           type="text"
@@ -66,7 +66,7 @@
                           required
                         />
                       </label>
-                      <label>
+                      <label class="col-b">
                         Colour B
                         <input
                           type="text"
@@ -77,6 +77,25 @@
                           value="#0000ff"
                           required
                         />
+                      </label>
+                      <label
+                        class="algo-label"
+                        id="tone-schedule-wrap"
+                        hidden="true"
+                        aria-hidden="true"
+                      >
+                        HCT Tone
+                        <div class="algo-prefix-container">
+                          <span class="algo-outer-cont">
+                            <button
+                              type="button"
+                              class="algo-trigger"
+                              data-trigger
+                            ></button>
+                            <span class="arrow down"></span>
+                          </span>
+                          <div class="algo-menu" data-menu></div>
+                        </div>
                       </label>
                       <label class="algo-label">
                         Algorithm
@@ -94,7 +113,7 @@
                           <div class="algo-menu" id="algo-menu"></div>
                         </div>
                       </label>
-                      <label>
+                      <label class="steps-label">
                         Steps
                         <div class="number-field">
                           <input
