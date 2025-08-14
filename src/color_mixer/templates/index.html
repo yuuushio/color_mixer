@@ -78,6 +78,23 @@
                           required
                         />
                       </label>
+
+                      <label class="interpolation-label">
+                        Interpolation
+                        <div class="algo-prefix-container" id="method-dropdown">
+                          <span class="algo-outer-cont">
+                            <button
+                              type="button"
+                              class="algo-trigger"
+                              id="method-trigger"
+                            >
+                              Linear
+                            </button>
+                            <span class="arrow down"></span>
+                          </span>
+                          <div class="algo-menu" id="method-menu"></div>
+                        </div>
+                      </label>
                       <label
                         class="algo-label"
                         id="tone-schedule-wrap"
@@ -90,11 +107,11 @@
                             <button
                               type="button"
                               class="algo-trigger"
-                              data-trigger
+                              id="data-trigger"
                             ></button>
                             <span class="arrow down"></span>
                           </span>
-                          <div class="algo-menu" data-menu></div>
+                          <div class="algo-menu" id="data-menu"></div>
                         </div>
                       </label>
                       <label class="algo-label">

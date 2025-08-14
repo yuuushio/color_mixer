@@ -762,6 +762,34 @@
     }
   }
 
+  // ---- Interpolation method dropdown (ColorAide `method=`):
+  function initMethodDropdown() {
+    const saved = sessionStorage.getItem("interp:method") || "linear";
+    const dd = new Dropdown("#method-dropdown", {
+      items: {
+        linear: "Linear",
+        "css-linear": "CSS Linear",
+        continuous: "Continuous",
+        bspline: "B-spline",
+        natural: "Natural cubic",
+        monotone: "Monotone cubic",
+        catrom: "Catmull–Rom",
+      },
+      value: saved,
+      itemClass: "algo-item",
+      // IMPORTANT: your HTML uses #method-trigger / #method-menu
+      triggerSel: "#method-trigger",
+      menuSel: "#method-menu",
+    });
+    document
+      .querySelector("#method-dropdown")
+      ?.addEventListener("change", (e) => {
+        const v = e.detail?.value || dd.value;
+        sessionStorage.setItem("interp:method", v);
+      });
+    return dd;
+  }
+
   /* --------------------------- Tone schedule control -------------------------- */
   function ToneScheduleUI() {
     const wrap = document.querySelector("#tone-schedule-wrap");
@@ -781,6 +809,8 @@
       value: saved,
       itemClass: "algo-item",
       onSelect: (v) => sessionStorage.setItem("tone:schedule", v),
+      triggerSel: "#data-trigger", // explicitly bind your ids
+      menuSel: "#data-menu",
     });
 
     // Robust hide/show that beats stylesheet overrides (including !important)
@@ -852,6 +882,8 @@
       algoKey === "hct_tone" ? toneUI.show() : toneUI.hide();
     };
 
+    const methodDD = initMethodDropdown();
+
     // Initial toggle on load
     updateAlgoUI(dropdown.value);
 
@@ -894,6 +926,9 @@
       if (dropdown.value === "hct_tone" && toneUI) {
         params.set("schedule", toneUI.value); // "ease" | "linear" | "shadow" | "highlight"
       }
+      const method =
+        methodDD?.value ?? sessionStorage.getItem("interp:method") ?? "linear";
+      params.set("method", method);
 
       const resp = await fetch(`/mix?${params}`);
       if (!resp.ok) {

@@ -12,7 +12,6 @@ from flask import Flask, jsonify, render_template, request
 # Project-local algorithms
 from .kubelka import km_mix
 from .hct_tone import tonal_ramp
-from .hct_mixer import mix_hct  # keep if you still expose "mix_hct"
 
 # ColorAide
 from coloraide import Color
@@ -88,7 +87,8 @@ class MixerEngine:
             raise ValueError(f"unknown algorithm '{algo}'")
 
         space, defaults = self._SPACE_MAP[algo]
-        method = (request.args.get("method") or "linear").lower()
+        method = request.args.get("method", "linear").lower()
+        print(method)
         if method not in self._METHODS:
             method = "linear"
 
