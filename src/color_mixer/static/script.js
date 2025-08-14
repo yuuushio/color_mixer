@@ -762,6 +762,75 @@
     }
   }
 
+  function ToneScheduleUI() {
+    // Find Colour B label to hide/show
+    const labelB = $("#colB")?.closest("label");
+    if (!labelB) return null;
+
+    // Build a label + dropdown, styled like your algo dropdown (no ID collisions).
+    const wrap = document.createElement("label");
+    wrap.className = "algo-label";
+    wrap.id = "tone-schedule-wrap";
+    wrap.hidden = true; // start hidden
+    wrap.setAttribute("aria-hidden", "true");
+    wrap.innerHTML = `
+    Tone schedule
+    <div class="algo-prefix-container">
+      <span class="algo-outer-cont">
+        <button type="button" class="algo-trigger" data-trigger>Ease</button>
+        <span class="arrow down"></span>
+      </span>
+      <div class="algo-menu" data-menu></div>
+    </div>
+  `;
+
+    // Insert schedule UI right after Colour B
+    labelB.insertAdjacentElement("afterend", wrap);
+
+    // Instantiate Dropdown with data-* selectors (avoids ID clashes).
+    const saved = sessionStorage.getItem("tone:schedule") || "ease";
+    const dd = new Dropdown(wrap.querySelector(".algo-prefix-container"), {
+      items: {
+        ease: "Ease",
+        linear: "Linear",
+        shadow: "Shadow",
+        highlight: "Highlight",
+      },
+      value: saved,
+      itemClass: "algo-item",
+      onSelect: (v) => sessionStorage.setItem("tone:schedule", v),
+      // uses default triggerSel/menuSel which include [data-trigger]/[data-menu]
+    });
+
+    // API for toggling
+    const show = () => {
+      if (labelB) {
+        labelB.hidden = true;
+        labelB.setAttribute("aria-hidden", "true");
+        $("#colB").disabled = true;
+      }
+      wrap.hidden = false;
+      wrap.setAttribute("aria-hidden", "false");
+    };
+    const hide = () => {
+      wrap.hidden = true;
+      wrap.setAttribute("aria-hidden", "true");
+      if (labelB) {
+        labelB.hidden = false;
+        labelB.setAttribute("aria-hidden", "false");
+        $("#colB").disabled = false;
+      }
+    };
+
+    return {
+      get value() {
+        return dd?.value || "ease";
+      },
+      show,
+      hide,
+    };
+  }
+
   /* ================================== Mixer UI ============================= */
 
   function initMixerWithDropdown() {
@@ -772,6 +841,7 @@
         okhsl: "OkHSL",
         okhsv: "OkHSV",
         mix_hct: "HCT-Mix",
+        hct_tone: "Google's HCT",
         srgb: "sRGB γ-encoded",
         linear: "Linear-light sRGB",
         cam16ucs: "CAM16-UCS",
@@ -780,6 +850,23 @@
       },
       value: "oklab",
       itemClass: "algo-item",
+    });
+
+    const toneUI = ToneScheduleUI();
+
+    const updateAlgoUI = (algoKey) => {
+      if (!toneUI) return;
+      if (algoKey === "hct_tone") toneUI.show();
+      else toneUI.hide();
+    };
+
+    // Initial toggle on load
+    updateAlgoUI(dropdown.value);
+
+    // React to changes from the algo dropdown
+    $("#algo-dropdown")?.addEventListener("change", (e) => {
+      const val = e.detail?.value || dropdown.value;
+      updateAlgoUI(val);
     });
 
     const form = $("#mixform");

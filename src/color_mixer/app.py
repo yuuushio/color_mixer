@@ -13,6 +13,7 @@ from flask import Flask, jsonify, render_template, request
 # Subtractive mixer (faithful Kubelka–Munk)
 from .kubelka import km_mix
 from .hct_mixer import mix_hct
+from .hct_tone import tonal_ramp
 
 # Coloraide
 from coloraide import Color as _Base
@@ -48,7 +49,9 @@ class MixerEngine:
 
     def __init__(self) -> None:
         # Keep order stable for clients; include subtractive name.
-        self._supported = tuple(list(self._SPACE_MAP.keys()) + ["km_sub", "mix_hct"])
+        self._supported = tuple(
+            list(self._SPACE_MAP.keys()) + ["km_sub", "mix_hct", "hct_tone"]
+        )
 
     def supported(self) -> tuple[str, ...]:
         return self._supported
@@ -67,6 +70,19 @@ class MixerEngine:
 
         if algo not in self._SPACE_MAP:
             raise ValueError(f"unknown algorithm '{algo}'")
+
+        if algo == "hct_tone":
+            sched = request.args.get(
+                "schedule", "linear"
+            )  # "ease" | "linear" | "shadow" | "highlight"
+            if sched not in ("ease", "linear", "shadow", "highlight"):
+                sched = "linear"
+            try:
+                gamma = float(request.args.get("gamma", 1.35))
+            except (TypeError, ValueError):
+                gamma = 1.35
+            # Note: hex_b is ignored for this algo by design
+            return tonal_ramp(hex_a, n, schedule=sched, gamma=gamma)
 
         space, kw = self._SPACE_MAP[algo]
         # Fast-path for true linear-light sRGB: do LERP in NumPy, avoid Coloraide.
