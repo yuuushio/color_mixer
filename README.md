@@ -1,3 +1,5 @@
+# Color Mixer
+
 ## Todo
 
-- reponsive layout for swatches, but overall (move controls left align when resizing, etc. hits certain width)
+- Option to set swatch background so that the user can test the contrast.

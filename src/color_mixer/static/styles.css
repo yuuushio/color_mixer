@@ -311,6 +311,8 @@ h1 {
   border-radius: 0.4rem;
   outline: none;
   padding: 0.2rem;
+  max-height: 350px;
+  overflow: auto;
 }
 .algo-prefix-container.open .algo-menu {
   transform: scaleY(1);
@@ -852,4 +854,28 @@ button {
 
 label.interpolation-label {
   display: none;
+}
+
+.algo-menu::-webkit-scrollbar {
+  width: 5px;
+  height: 2px;
+  background: #dde2ed;
+}
+.algo-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+.algo-menu::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--fg) 35%, transparent);
+  border: none;
+  border-radius: 8px;
+}
+.algo-menu::-webkit-scrollbar-button {
+  /* remove the end buttons entirely */
+  display: none;
+  width: 0;
+  height: 0;
+}
+.algo-menu::-webkit-scrollbar-corner {
+  /* transparent corner on both axes */
+  background: transparent;
 }
