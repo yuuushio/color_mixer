@@ -1,7 +1,5 @@
 # Colour Mixer
 
-![Preview](_assets/preview_1.png)
-
 A small web application for exploring how colours transform across perceptual spaces.
 
 Modern UI and graphic systems increasingly treat colour as a perceptual control problem: maintain tone and chroma relationships under constraints, not just pick hex codes. Material Design’s HCT work is a concrete example of this approach.
@@ -34,3 +32,5 @@ UI notes
 - Mixer tab persists selections in sessionStorage.
 - Requests are cached client-side via a small LRU to reduce redundant `/mix` calls.
 - Lab tab parses Ghostty theme input and emits CSS variables in a stable ordering; derived values are computed by mixing against black/white and selected palette entries.
+
+![Preview](_assets/preview_1.png)
