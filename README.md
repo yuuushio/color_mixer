@@ -10,8 +10,6 @@ Modern UI and graphic systems increasingly treat colour as a perceptual control 
 - Single-seed tonal ramps using HCT tone scheduling.
 - Lab tab: parse a Ghostty theme snippet and emit a deterministic set of CSS variables, including derived ramps and convenience colours.
 
-## Algorithms
-
 The `/mix` endpoint supports these algorithms:
 
 - Colorspaces via ColorAide (two-stop A→B):
