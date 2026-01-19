@@ -1,5 +1,7 @@
 # Colour Mixer
 
+![Preview](_assets/preview_1.png)
+
 A small web application for exploring how colours transform across perceptual spaces.
 
 Modern UI and graphic systems increasingly treat colour as a perceptual control problem: maintain tone and chroma relationships under constraints, not just pick hex codes. Material Design’s HCT work is a concrete example of this approach.
